@@ -1,0 +1,7 @@
+/* logo-size.css
+   فقط لتعديل حجم الشعار دون التأثير على بقية الموقع
+*/
+.logo {
+  height: 80px !important;
+  width: auto !important;
+}
