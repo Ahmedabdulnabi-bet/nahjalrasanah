@@ -1,9 +1,29 @@
+// assets/js/app.js
+
+import { firebaseConfig } from './firebase-config.js';
+
+import {
+  initializeApp
+} from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js';
+
+import {
+  getFirestore,
+  collection,
+  getDocs
+} from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js';
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
 const STORAGE_KEY_RFQ = 'nahj_rfq_cart_v1';
 
 async function loadProducts() {
-  const res = await fetch('assets/data/products.json');
-  if (!res.ok) throw new Error('Failed to load products.json');
-  return res.json();
+  const snapshot = await getDocs(collection(db, 'products'));
+  const products = snapshot.docs.map(d => ({
+    id: d.id,
+    ...d.data()
+  }));
+  return products.filter(p => p.isActive !== false);
 }
 
 function getRfqCart() {
@@ -128,7 +148,7 @@ async function initHomePage() {
         <div class="card h-100 shadow-sm product-card">
           <div class="card-body d-flex flex-column">
             <span class="badge text-bg-secondary mb-2">${p.category || ''}</span>
-            <h3 class="h6 fw-semibold mb-1">${p.name}</h3>
+            <h3 class="h6 fw-semibold mb-1">${p.name || ''}</h3>
             <p class="small text-muted mb-1">${p.segment || ''}</p>
             <p class="small text-muted mb-2">Part No: ${p.partNumber || ''}</p>
             <p class="small mb-3 flex-grow-1">${p.shortDescription || ''}</p>
@@ -201,8 +221,8 @@ async function initProductPage() {
   const mediaList = document.getElementById('product-media-list');
   const btnAdd = document.getElementById('btn-add-to-rfq');
 
-  nameEl.textContent = product.name;
-  breadcrumbName.textContent = product.name;
+  nameEl.textContent = product.name || '';
+  breadcrumbName.textContent = product.name || '';
   segEl.textContent = product.segment || '';
   catBadge.textContent = product.category || '';
   partEl.textContent = product.partNumber || '';
@@ -283,7 +303,7 @@ async function initRfqPage() {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>
-          <div class="fw-semibold small">${p.name}</div>
+          <div class="fw-semibold small">${p.name || ''}</div>
           <div class="small text-muted">${p.segment || ''}</div>
         </td>
         <td class="small">${p.partNumber || ''}</td>
