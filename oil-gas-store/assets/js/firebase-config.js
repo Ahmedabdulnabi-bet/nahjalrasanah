@@ -1,4 +1,7 @@
-// assets/js/firebase-config.js
+// Firebase project configuration
+// This file exports the configuration required to initialize Firebase in the
+// browser. It should be kept separate from application logic for ease of
+// maintenance.
 
 export const firebaseConfig = {
   apiKey: "AIzaSyAtcnouNdsILUvA9EMvrHMhoaWXkMqTMx0",
