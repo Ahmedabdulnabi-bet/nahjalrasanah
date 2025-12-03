@@ -379,7 +379,7 @@ async function initRfqPage() {
     lines.push('');
     lines.push('This RFQ was prepared using the Nahj Al-Rasaneh Oil & Gas Supplies online catalog front-end.');
 
-    const to = 'rfq@nahjalrasanah.com';
+    const to = 'sales@nahjalrasanah.com';
     const subject = encodeURIComponent('RFQ – ' + company);
     const body = encodeURIComponent(lines.join('\n'));
 
