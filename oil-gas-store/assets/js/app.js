@@ -1,5 +1,6 @@
 // assets/js/app.js
 
+// Import Firebase configuration
 import { firebaseConfig } from './firebase-config.js';
 
 import {
@@ -9,14 +10,19 @@ import {
 import {
   getFirestore,
   collection,
-  getDocs
+  getDocs,
+  addDoc,
+  serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js';
 
+// Initialize Firebase app and Firestore
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+// Local storage key for RFQ basket
 const STORAGE_KEY_RFQ = 'nahj_rfq_cart_v1';
 
+// Load active products from Firestore. Only products with isActive !== false are returned.
 async function loadProducts() {
   const snapshot = await getDocs(collection(db, 'products'));
   const products = snapshot.docs.map(d => ({
@@ -26,6 +32,7 @@ async function loadProducts() {
   return products.filter(p => p.isActive !== false);
 }
 
+// Retrieve RFQ cart from local storage
 function getRfqCart() {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY_RFQ);
@@ -35,12 +42,14 @@ function getRfqCart() {
   }
 }
 
+// Persist RFQ cart to local storage
 function saveRfqCart(cart) {
   try {
     window.localStorage.setItem(STORAGE_KEY_RFQ, JSON.stringify(cart));
   } catch {}
 }
 
+// Add item to RFQ cart; increments quantity if item already exists
 function addToRfq(itemId, qty = 1) {
   const cart = getRfqCart();
   const idx = cart.findIndex((c) => c.id === itemId);
@@ -49,6 +58,7 @@ function addToRfq(itemId, qty = 1) {
   saveRfqCart(cart);
 }
 
+// Update quantity of an item in RFQ cart
 function updateRfqItem(id, qty) {
   const cart = getRfqCart();
   const idx = cart.findIndex((c) => c.id === id);
@@ -59,15 +69,18 @@ function updateRfqItem(id, qty) {
   }
 }
 
+// Remove an item entirely from RFQ cart
 function removeRfqItem(id) {
   const cart = getRfqCart().filter((c) => c.id !== id);
   saveRfqCart(cart);
 }
 
+// Clear RFQ cart
 function clearRfqCart() {
   saveRfqCart([]);
 }
 
+// Initialize behaviour for home page (catalog)
 async function initHomePage() {
   const grid = document.getElementById('catalog-grid');
   if (!grid) return;
@@ -81,6 +94,7 @@ async function initHomePage() {
 
   const products = await loadProducts();
 
+  // Populate filters based on available product data
   const categories = [...new Set(products.map((p) => p.category).filter(Boolean))].sort();
   const segments = [...new Set(products.map((p) => p.segment).filter(Boolean))].sort();
 
@@ -185,6 +199,7 @@ async function initHomePage() {
   renderCatalog(products);
 }
 
+// Initialize behaviour for product detail page
 async function initProductPage() {
   const detailsContainer = document.getElementById('product-details');
   if (!detailsContainer) return;
@@ -277,6 +292,7 @@ async function initProductPage() {
   });
 }
 
+// Initialize behaviour for RFQ basket page
 async function initRfqPage() {
   const tableBody = document.getElementById('rfq-table-body');
   if (!tableBody) return;
@@ -290,13 +306,11 @@ async function initRfqPage() {
   function renderRfq() {
     const cart = getRfqCart();
     tableBody.innerHTML = '';
-
     if (!cart.length) {
       emptyRow.classList.remove('d-none');
       return;
     }
     emptyRow.classList.add('d-none');
-
     cart.forEach((item) => {
       const p = products.find((prod) => prod.id === item.id);
       if (!p) return;
@@ -340,7 +354,7 @@ async function initRfqPage() {
     renderRfq();
   });
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const cart = getRfqCart();
     if (!cart.length) {
@@ -357,6 +371,41 @@ async function initRfqPage() {
     const delivery = formData.get('delivery') || '';
     const notes = formData.get('notes') || '';
 
+    // Build detailed item list and vendor list for Firestore
+    const items = [];
+    const vendors = [];
+    cart.forEach((item) => {
+      const p = products.find((prod) => prod.id === item.id);
+      if (!p) return;
+      items.push({
+        id: p.id,
+        partNumber: p.partNumber || '',
+        name: p.name || '',
+        qty: item.qty,
+        vendorId: p.vendorId || null
+      });
+      if (p.vendorId && !vendors.includes(p.vendorId)) vendors.push(p.vendorId);
+    });
+
+    // Store RFQ in Firestore for admin/vendor review
+    try {
+      await addDoc(collection(db, 'rfqs'), {
+        company,
+        contact,
+        email,
+        phone,
+        project,
+        delivery,
+        notes,
+        items,
+        vendors,
+        createdAt: serverTimestamp()
+      });
+    } catch (err) {
+      console.error(err);
+    }
+
+    // Build mailto body for client email
     const lines = [];
     lines.push('Requested items:');
     lines.push('');
@@ -377,18 +426,24 @@ async function initRfqPage() {
     lines.push('Notes / conditions:');
     lines.push(notes || '-');
     lines.push('');
-    lines.push('This RFQ was prepared using the Nahj Al-Rasaneh Oil & Gas Supplies online catalog front-end.');
+    lines.push('This RFQ was prepared using the Nahj Al-Rasanah Oil & Gas Supplies online catalog front-end.');
 
     const to = 'sales@nahjalrasanah.com';
     const subject = encodeURIComponent('RFQ – ' + company);
     const body = encodeURIComponent(lines.join('\n'));
 
+    // Clear basket and rerender
+    clearRfqCart();
+    renderRfq();
+
+    // Trigger the email client
     window.location.href = `mailto:${to}?subject=${subject}&body=${body}`;
   });
 
   renderRfq();
 }
 
+// Common footer initialisation: update year
 function initCommon() {
   const yearSpan = document.getElementById('year');
   if (yearSpan) {
@@ -396,6 +451,7 @@ function initCommon() {
   }
 }
 
+// Entry point when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
   initCommon();
   const page = document.body.getAttribute('data-page');
