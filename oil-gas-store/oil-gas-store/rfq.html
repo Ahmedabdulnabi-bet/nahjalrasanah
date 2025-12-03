@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nahj Al-Rasaneh | Oil & Gas Supplies</title>
+<link rel="icon" type="image/png" href="assets/images/logo-store.png">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/styles.css">
+
+  </head>
+  <body data-page="rfq">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm sticky-top">
+  <div class="container">
+    <a class="navbar-brand d-flex align-items-center gap-2" href="index.html">
+      <img src="assets/images/logo-store.png" alt="Nahj Oil & Gas Store" width="32" height="32" class="rounded-circle border border-secondary">
+      <span class="fw-semibold">
+        Nahj Al-Rasaneh<br>
+        <small class="text-muted" style="font-size:0.7rem;">Oil &amp; Gas Equipment &amp; Spare Parts</small>
+      </span>
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="mainNavbar">
+      <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+        <li class="nav-item"><a class="nav-link active" aria-current="page" href="index.html">Home</a></li>
+        <li class="nav-item"><a class="nav-link" href="#catalog">Catalog</a></li>
+        <li class="nav-item"><a class="nav-link" href="#how-we-work">How We Work</a></li>
+        <li class="nav-item"><a class="nav-link" href="rfq.html">RFQ Basket</a></li>
+        <li class="nav-item"><a class="nav-link" href="https://www.nahjalrasanah.com" target="_blank" rel="noopener">Main Website</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <main class="py-4">
+      <div class="container">
+        <div class="row gy-4">
+          <div class="col-lg-7">
+            <h1 class="h4 fw-bold mb-2">RFQ Basket</h1>
+            <p class="small text-muted mb-3">
+              This basket is a draft RFQ tool only. Quantities and item selection can be adjusted before sending the final request to Nahj Al-Rasaneh's team.
+            </p>
+            <div class="card shadow-sm mb-3">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <h6 class="fw-semibold mb-0">Selected Items</h6>
+                  <button class="btn btn-sm btn-outline-danger" id="btn-clear-rfq">Clear Basket</button>
+                </div>
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                      <tr>
+                        <th style="width:35%;">Item</th>
+                        <th style="width:20%;">Part No</th>
+                        <th style="width:15%;">Qty</th>
+                        <th style="width:20%;">Category</th>
+                        <th style="width:10%;"></th>
+                      </tr>
+                    </thead>
+                    <tbody id="rfq-table-body"></tbody>
+                  </table>
+                </div>
+                <p id="rfq-empty" class="small text-muted mt-3 mb-0 d-none">
+                  Your RFQ basket is currently empty. Please add items from the <a href="index.html#catalog">catalog</a>.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-5">
+            <h2 class="h5 fw-bold mb-3">RFQ Contact Details</h2>
+            <div class="card shadow-sm">
+              <div class="card-body">
+                <form id="rfq-form">
+                  <div class="mb-2">
+                    <label class="form-label small">Company Name *</label>
+                    <input type="text" class="form-control form-control-sm" name="company" required>
+                  </div>
+                  <div class="mb-2">
+                    <label class="form-label small">Contact Person *</label>
+                    <input type="text" class="form-control form-control-sm" name="contact" required>
+                  </div>
+                  <div class="row">
+                    <div class="col-md-6 mb-2">
+                      <label class="form-label small">Email *</label>
+                      <input type="email" class="form-control form-control-sm" name="email" required>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                      <label class="form-label small">Phone / Mobile *</label>
+                      <input type="text" class="form-control form-control-sm" name="phone" required>
+                    </div>
+                  </div>
+                  <div class="mb-2">
+                    <label class="form-label small">Project / Field</label>
+                    <input type="text" class="form-control form-control-sm" name="project">
+                  </div>
+                  <div class="mb-2">
+                    <label class="form-label small">Delivery Location / INCOTERM</label>
+                    <input type="text" class="form-control form-control-sm" name="delivery">
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label small">Additional Notes</label>
+                    <textarea class="form-control form-control-sm" rows="4" name="notes" placeholder="Tender reference, required delivery, technical conditions, documentation requirements..."></textarea>
+                  </div>
+                  <button type="submit" class="btn btn-primary w-100 mb-2">Prepare RFQ Email</button>
+                  <p class="small text-muted mb-0">
+                    Your email client will open with a pre-filled RFQ including the list of selected items. Please review and attach any additional documents (BOQ, datasheets, tender forms) before sending.
+                  </p>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+    <footer class="bg-dark text-light mt-5 pt-4 pb-3">
+  <div class="container">
+    <div class="row gy-3">
+      <div class="col-md-6">
+        <h6 class="fw-semibold mb-2">Nahj Al-Rasaneh for General Trading, General Contracting, Light Industries, Training and Development, Agricultural Investment, Services, and Public Transportation LLC</h6>
+        <p class="small mb-1">
+          Oil &amp; Gas Supplies Unit – Badra District, Wasit Governorate, Republic of Iraq.
+        </p>
+        <p class="small mb-0">
+          Phone: +964 784 349 9555 · Email: <a href="mailto:sales@nahjalrasanah.com" class="link-light text-decoration-none">sales@nahjalrasanah.com</a>
+        </p>
+      </div>
+      <div class="col-md-3">
+        <h6 class="fw-semibold mb-2">Quick Links</h6>
+        <ul class="list-unstyled small mb-0">
+          <li><a href="#catalog" class="link-light text-decoration-none">Product Catalog</a></li>
+          <li><a href="rfq.html" class="link-light text-decoration-none">RFQ Basket</a></li>
+          <li><a href="https://www.nahjalrasanah.com" target="_blank" class="link-light text-decoration-none">Corporate Website</a></li>
+        </ul>
+      </div>
+      <div class="col-md-3">
+        <h6 class="fw-semibold mb-2">Note</h6>
+        <p class="small mb-0">
+          This online catalog is a front-end layer only. All offers are subject to formal technical and commercial clarification through Nahj Al-Rasaneh's procurement team.
+        </p>
+      </div>
+    </div>
+    <hr class="border-secondary my-3">
+    <p class="small text-center mb-0">&copy; <span id="year"></span> Nahj Al-Rasaneh LLC. All rights reserved.</p>
+  </div>
+</footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script type="module" src="assets/js/app.js"></script>
+
+  </body>
+</html>
