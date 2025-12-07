@@ -6,20 +6,22 @@ import {
   initializeApp
 } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js';
 
-import { // استيراد وظائف المصادقة
+import { 
   getAuth,
   onAuthStateChanged,
   signOut
 } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js';
 
-import { // استيراد وظائف Firestore الضرورية
+import { 
   getFirestore,
   collection,
   getDocs,
-  deleteDoc, // جديد: لحذف المستندات
-  doc, // جديد: لتحديد مرجع المستند
+  deleteDoc, 
+  doc, 
   query,
-  orderBy
+  orderBy,
+  where, // جديد: للاستعلام الشرطي
+  getDoc // جديد: لجلب ملف تعريف المستخدم
 } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js';
 
 // initialize Firebase
@@ -27,6 +29,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 const rfqsCol = collection(db, 'rfqs');
+const productsCol = collection(db, 'products'); // مرجع لمجموعة المنتجات
 
 // DOM elements
 const rfqAuthMessage = document.getElementById('rfq-auth-message');
@@ -36,17 +39,65 @@ const rfqsStatus = document.getElementById('rfqs-status');
 
 // حالة المستخدم
 let currentUser = null;
+let userRole = 'guest'; // 'guest', 'vendor', or 'admin'
+let vendorProductIds = []; // مصفوفة بمعرفات المنتجات التي يملكها البائع
 
-// ---------- Authentication UI ----------
+/**
+ * دالة لجلب دور المستخدم ومعرفات منتجاته.
+ * @param {object} user - كائن مستخدم مصادقة Firebase.
+ */
+async function fetchUserRoleAndProducts(user) {
+  userRole = 'guest';
+  vendorProductIds = [];
+
+  try {
+    // *** يجب تكييف هذا القسم (1) حسب هيكل مجموعة 'users' لديك ***
+    const userDocRef = doc(db, 'users', user.uid);
+    const userSnap = await getDoc(userDocRef);
+    
+    if (userSnap.exists()) {
+      const userData = userSnap.data();
+      userRole = userData.role || 'vendor'; // الافتراضي بائع إذا لم يتم تحديد الدور
+    } else {
+      // إذا لم يتم العثور على ملف تعريف، الافتراضي هو بائع أو يمكن حظر الوصول
+      userRole = 'vendor'; 
+    }
+    // *** نهاية قسم التكييف (1) ***
+
+    if (userRole === 'admin') {
+      return; // المسؤول لا يحتاج لتصفية المنتجات
+    }
+    
+    // إذا كان 'vendor'، قم بجلب المنتجات التي يملكها
+    // *** يجب تكييف هذا القسم (2) حسب الحقل الذي يربط المنتج بالبائع في مجموعة 'products' ***
+    const q = query(productsCol, where('vendorUid', '==', user.uid));
+    const snap = await getDocs(q);
+    vendorProductIds = snap.docs.map(d => d.id);
+    // *** نهاية قسم التكييف (2) ***
+    
+  } catch (error) {
+    console.error("Error fetching user role or products:", error);
+    // في حالة الخطأ، من الأفضل تعيين دور مقيد أو الخروج
+    userRole = 'guest'; 
+    await signOut(auth);
+  }
+}
+
+
+// ---------- Authentication UI (تحديث) ----------
 function initAuthUI() {
   const authButton = document.getElementById('auth-button');
   const authButtonText = document.getElementById('auth-button-text');
   if (!authButton || !authButtonText) return;
 
-  onAuthStateChanged(auth, (user) => {
+  onAuthStateChanged(auth, async (user) => {
     currentUser = user;
+    
     if (user) {
-      // المستخدم مسجل الدخول
+      // 1. جلب الدور والمنتجات
+      await fetchUserRoleAndProducts(user); 
+      
+      // 2. تحديث UI زر الدخول/الخروج
       authButton.href = '#';
       authButtonText.textContent = 'Admin Logout';
       authButton.classList.remove('btn-outline-light');
@@ -61,10 +112,11 @@ function initAuthUI() {
         }
       };
       
-      // إظهار قسم RFQs وتحميل الطلبات
+      // 3. إظهار قسم RFQs وتحميل الطلبات
       rfqAuthMessage && rfqAuthMessage.classList.add('d-none');
       rfqsSection && rfqsSection.classList.remove('d-none');
       loadRfqs().catch(console.error);
+      
     } else {
       // المستخدم غير مسجل الدخول
       authButton.href = 'admin.html';
@@ -76,19 +128,15 @@ function initAuthUI() {
       // إخفاء قسم RFQs وعرض رسالة تسجيل الدخول
       rfqsSection && rfqsSection.classList.add('d-none');
       rfqAuthMessage && rfqAuthMessage.classList.remove('d-none');
+      userRole = 'guest'; // إعادة تعيين الدور عند تسجيل الخروج
     }
   });
 }
 
 // ---------- RFQ deletion logic ----------
-
-/**
- * دالة لحذف مستند طلب عرض السعر (RFQ) من Firestore.
- * @param {string} id - معرّف الطلب (Doc ID).
- */
 async function deleteRfq(id) {
-  if (!currentUser) {
-    alert('You must be logged in to perform this action.');
+  if (userRole !== 'admin') {
+    alert('Only administrators are allowed to delete RFQs.');
     return;
   }
   const ok = confirm(`Are you sure you want to delete RFQ ID: ${id}? This action cannot be undone.`);
@@ -96,11 +144,9 @@ async function deleteRfq(id) {
 
   rfqsStatus.textContent = 'Deleting RFQ...';
   try {
-    // تحديد مرجع المستند المراد حذفه
     await deleteDoc(doc(db, 'rfqs', id));
     rfqsStatus.textContent = `RFQ ${id} deleted successfully. Reloading list...`;
     
-    // إعادة تحميل قائمة الطلبات بعد الحذف
     await loadRfqs();
   } catch (err) {
     console.error('Error deleting RFQ:', err);
@@ -109,28 +155,51 @@ async function deleteRfq(id) {
   }
 }
 
-// ---------- RFQs loading and rendering ----------
+// ---------- RFQs loading and rendering (تحديث التصفية) ----------
 async function loadRfqs() {
   if (!rfqsList) return;
+  
+  if (userRole === 'guest') {
+    rfqsStatus.textContent = 'Access Denied.';
+    rfqsList.innerHTML = '<div class="alert alert-danger">Access Denied. Please log in to view RFQs.</div>';
+    return;
+  }
   
   rfqsList.innerHTML = '';
   rfqsStatus.textContent = 'Loading RFQs...';
 
   try {
-    // جلب الطلبات، مرتبة حسب الأحدث (createdAt descending)
+    // جلب جميع الطلبات
     const q = query(rfqsCol, orderBy('createdAt', 'desc'));
     const snap = await getDocs(q);
 
-    const rfqs = snap.docs.map(d => ({
+    let rfqs = snap.docs.map(d => ({
       id: d.id,
       ...d.data(),
       createdAt: d.data().createdAt ? d.data().createdAt.toDate() : new Date(),
     }));
 
-    rfqsStatus.textContent = `Found ${rfqs.length} RFQ(s).`;
+    // تطبيق منطق التصفية حسب الدور
+    if (userRole === 'vendor') {
+      // تصفية الطلبات: يجب أن يحتوي الطلب على منتج واحد على الأقل يملكه البائع
+      if (vendorProductIds.length === 0) {
+          rfqs = []; // لا يملك منتجات، لا يرى أي طلبات
+      } else {
+          rfqs = rfqs.filter(rfq => {
+              // تحقق مما إذا كان أي عنصر في الطلب يتطابق مع قائمة منتجات البائع
+              return (rfq.items || []).some(item => vendorProductIds.includes(item.id));
+          });
+      }
+    }
+    // ملاحظة: إذا كان userRole === 'admin'، لن يتم تطبيق التصفية، وستظهر جميع الطلبات.
+
+    rfqsStatus.textContent = `Found ${rfqs.length} RFQ(s) for your account.`;
     
     if (rfqs.length === 0) {
-      rfqsList.innerHTML = '<div class="alert alert-info">No RFQs have been received yet.</div>';
+      const emptyMessage = userRole === 'admin' 
+        ? 'No RFQs have been received yet.' 
+        : 'No RFQs related to your products have been received yet.';
+      rfqsList.innerHTML = `<div class="alert alert-info">${emptyMessage}</div>`;
       return;
     }
 
