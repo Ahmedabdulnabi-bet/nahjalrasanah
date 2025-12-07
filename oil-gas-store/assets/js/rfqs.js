@@ -19,9 +19,9 @@ import {
   getDocs,
   doc,
   getDoc,
-  deleteDoc, // (جديد) لاستخدامه في حذف RFQ
-  query, // (جديد) لإنشاء استعلامات
-  orderBy // (جديد) للفرز
+  deleteDoc, // (مضاف)
+  query, // (مضاف)
+  orderBy // (مضاف)
 } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js';
 
 // Initialise Firebase services
@@ -63,7 +63,7 @@ async function fetchProducts() {
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
-// (جديد) دالة لحذف RFQ
+// دالة لحذف RFQ
 async function deleteRfq(id) {
     if (userRole !== 'admin') {
         alert('Only administrators are allowed to delete RFQs.');
@@ -87,7 +87,7 @@ async function deleteRfq(id) {
 
 // Function to load and display RFQs
 async function loadRfqs() {
-    // تحقق أمان إضافي (يجب أن يتم التعامل معه بواسطة onAuthStateChanged)
+    // تحقق أمان إضافي
     if (userRole === 'guest') {
         rfqsStatus.textContent = '';
         rfqsList.innerHTML = '<div class="alert alert-danger">Access Denied. Please log in to view RFQs.</div>';
@@ -99,7 +99,7 @@ async function loadRfqs() {
     
     try {
         // Fetch all RFQs, ordered by creation date (newest first)
-        const q = query(rfqsCol, orderBy('createdAt', 'desc')); // (محدث) استخدم query و orderBy
+        const q = query(rfqsCol, orderBy('createdAt', 'desc'));
         const rfqsSnapshot = await getDocs(q);
         
         allProducts = await fetchProducts(); // جلب جميع المنتجات لأغراض الفلترة والعرض
@@ -115,7 +115,6 @@ async function loadRfqs() {
                 return (rfq.items || []).some(item => vendorProducts.includes(item.id));
             });
         }
-        // لا حاجة لـ else if (userRole === 'guest') لأننا تحققنا في البداية
 
         if (!rfqs.length) {
             const msg = userRole === 'vendor' 
@@ -134,7 +133,6 @@ async function loadRfqs() {
 
             // Prepare item list HTML
             const itemsHtml = (rfq.items || []).map(item => {
-                // نعتمد على البيانات المخزنة في RFQ Item (item.name, item.partNumber)
                 const product = allProducts.find(p => p.id === item.id) || { name: item.name, partNumber: item.partNumber };
                 return `
                     <tr>
@@ -145,7 +143,7 @@ async function loadRfqs() {
                 `;
             }).join('');
             
-            // (جديد) زر الحذف يظهر فقط للمسؤول
+            // زر الحذف يظهر فقط للمسؤول
             const deleteButtonHtml = userRole === 'admin' 
                 ? `<button class="btn btn-sm btn-danger mt-3 delete-rfq-btn" data-rfq-id="${rfq.id}">Delete This RFQ</button>`
                 : '';
@@ -202,7 +200,7 @@ async function loadRfqs() {
             rfqsList.appendChild(rfqCard);
         });
         
-        // (جديد) إضافة مستمع الحدث لأزرار الحذف
+        // إضافة مستمع الحدث لأزرار الحذف
         document.querySelectorAll('.delete-rfq-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const id = e.currentTarget.getAttribute('data-rfq-id');
@@ -237,6 +235,9 @@ onAuthStateChanged(auth, async (user) => {
         logoutBtn && logoutBtn.classList.remove('d-none');
         
         userRole = 'vendor'; // Default role is vendor
+
+        console.log(`[AUTH] User ID: ${user.uid}. Attempting to fetch role...`);
+
         try {
             const userDoc = await getDoc(doc(db, 'users', user.uid));
             if (userDoc.exists()) {
@@ -244,15 +245,19 @@ onAuthStateChanged(auth, async (user) => {
                 if (data && data.role === 'admin') {
                     userRole = 'admin';
                 }
+                console.log(`[AUTH] Firestore Doc Found. Assigned Role: ${userRole}`);
+            } else {
+                 console.warn(`[AUTH WARNING] User document (UID: ${user.uid}) not found in 'users' collection. Defaulting to 'vendor'.`);
+                 console.warn("ACTION REQUIRED: Admin users must manually create a document in 'users' collection with role: 'admin'.");
             }
         } catch (err) {
-            console.error("Error fetching user role:", err);
-            // في حالة الخطأ، نستمر كبائع ('vendor') لتقليل التعرض للبيانات، وهذا يمنع ظهور "Access Denied" خطأ
+            console.error("Error fetching user role from Firestore, defaulting to 'vendor'. Check Firestore rules/connection:", err);
+            // في حالة الخطأ، نترك الدور الافتراضي 'vendor'
         }
 
         // 2. Show content and load RFQs
-        authMessage && authMessage.classList.add('d-none'); // إخفاء "Access Denied"
-        rfqsSection && rfqsSection.classList.remove('d-none'); // إظهار قسم RFQs
+        authMessage && authMessage.classList.add('d-none');
+        rfqsSection && rfqsSection.classList.remove('d-none');
         
         // Update title to reflect the role
         const titleEl = document.querySelector('#rfqs-section h1');
@@ -267,8 +272,8 @@ onAuthStateChanged(auth, async (user) => {
         logoutBtn && logoutBtn.classList.add('d-none');
         
         // Show auth message and hide RFQs section
-        authMessage && authMessage.classList.remove('d-none'); // إظهار "Access Denied"
-        rfqsSection && rfqsSection.classList.add('d-none'); // إخفاء قسم RFQs
+        authMessage && authMessage.classList.remove('d-none');
+        rfqsSection && rfqsSection.classList.add('d-none');
         rfqsList && (rfqsList.innerHTML = '');
         rfqsStatus && (rfqsStatus.textContent = '');
     }
