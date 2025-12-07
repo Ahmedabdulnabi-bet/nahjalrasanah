@@ -10,10 +10,17 @@ import {
   addDoc,
   serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js';
+import { // START: إضافة استيراد مصادقة Firebase
+  getAuth,
+  onAuthStateChanged,
+  signOut
+} from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js';
+// END: إضافة استيراد مصادقة Firebase
 
 // initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app); // إضافة تهيئة خدمة المصادقة
 
 // RFQ localStorage key
 const STORAGE_KEY_RFQ = 'nahj_rfq_cart_v1';
@@ -429,10 +436,46 @@ async function initRfqPage() {
   renderRfq();
 }
 
+// ---------- Authentication UI (Admin Login/Logout) ----------
+function initAuthUI() { // الدالة الجديدة للزر
+  const authButton = document.getElementById('auth-button');
+  const authButtonText = document.getElementById('auth-button-text');
+  if (!authButton || !authButtonText) return;
+
+  // الاستماع لتغيير حالة المصادقة
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      // المستخدم مسجل الدخول
+      authButton.href = '#';
+      authButtonText.textContent = 'Admin Logout';
+      authButton.classList.remove('btn-outline-light');
+      authButton.classList.add('btn-outline-danger'); // تغيير لون الزر للإشارة إلى الخروج
+      authButton.onclick = async (e) => {
+        e.preventDefault();
+        try {
+          await signOut(auth); // تنفيذ عملية تسجيل الخروج
+          // بعد تسجيل الخروج، onAuthStateChanged ستقوم بتحديث الواجهة
+        } catch (error) {
+          console.error('Logout error:', error);
+          alert('Failed to log out.');
+        }
+      };
+    } else {
+      // المستخدم غير مسجل الدخول
+      authButton.href = 'admin.html';
+      authButtonText.textContent = 'Admin Login';
+      authButton.classList.remove('btn-outline-danger');
+      authButton.classList.add('btn-outline-light');
+      authButton.onclick = null; // إزالة معالج النقر لتسجيل الخروج
+    }
+  });
+}
+
 // ---------- init dispatcher ----------
 function initCommon() {
   const yearSpan = document.getElementById('year');
   if (yearSpan) yearSpan.textContent = new Date().getFullYear();
+  initAuthUI(); // استدعاء الدالة الجديدة لتهيئة زر الدخول/الخروج
 }
 
 document.addEventListener('DOMContentLoaded', () => {
