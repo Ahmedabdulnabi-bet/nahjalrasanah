@@ -1,14 +1,17 @@
-// assets/js/app.js - نسخة محسنة
+// assets/js/app.js
 
 import { firebaseConfig } from './firebase-config.js';
+
 import { 
   initializeApp 
 } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js';
+
 import { 
   getAuth,
   onAuthStateChanged,
   signOut
 } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js';
+
 import {
   getFirestore,
   collection,
@@ -16,7 +19,9 @@ import {
   addDoc,
   serverTimestamp,
   getDoc,
-  doc
+  doc,
+  query,
+  where
 } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js';
 
 // Initialize Firebase
@@ -24,24 +29,19 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-// DOM elements
-const productListEl = document.getElementById('product-list');
-const categoryFilter = document.getElementById('category-filter');
-const segmentFilter = document.getElementById('segment-filter');
-const sortFilter = document.getElementById('sort-filter');
-const searchForm = document.getElementById('search-form');
-const searchInput = document.getElementById('search-input');
-const catalogEmpty = document.getElementById('catalog-empty');
+// Collections
+const productsCol = collection(db, 'products');
+const rfqsCol = collection(db, 'rfqs');
 
-// RFQ localStorage key
+// RFQ storage
 const STORAGE_KEY_RFQ = 'nahj_rfq_cart_v1';
 let products = [];
 let filteredProducts = [];
 
-// ---------- local RFQ helpers ----------
+// ---------- Helper Functions ----------
 function getRfqCart() {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY_RFQ);
+    const raw = localStorage.getItem(STORAGE_KEY_RFQ);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -50,156 +50,132 @@ function getRfqCart() {
 
 function saveRfqCart(cart) {
   try {
-    window.localStorage.setItem(STORAGE_KEY_RFQ, JSON.stringify(cart));
+    localStorage.setItem(STORAGE_KEY_RFQ, JSON.stringify(cart));
     updateRfqCount();
-  } catch {}
+  } catch (error) {
+    console.error('Error saving RFQ cart:', error);
+  }
 }
 
 function addToRfq(itemId, qty = 1) {
   const cart = getRfqCart();
-  const idx = cart.findIndex((c) => c.id === itemId);
+  const idx = cart.findIndex(item => item.id === itemId);
+  
   if (idx >= 0) {
     cart[idx].qty += qty;
   } else {
     cart.push({ id: itemId, qty });
   }
+  
   saveRfqCart(cart);
-  showNotification('Product added to RFQ basket!');
+  showNotification('Product added to RFQ basket!', 'success');
+}
+
+function removeRfqItem(itemId) {
+  const cart = getRfqCart().filter(item => item.id !== itemId);
+  saveRfqCart(cart);
+}
+
+function clearRfqCart() {
+  localStorage.removeItem(STORAGE_KEY_RFQ);
+  updateRfqCount();
 }
 
 function updateRfqCount() {
-  const count = getRfqCart().length;
-  const rfqCountEl = document.getElementById('rfq-count');
-  if (rfqCountEl) {
-    rfqCountEl.textContent = count > 0 ? `RFQ (${count})` : 'RFQ';
-  }
+  const cart = getRfqCart();
+  const countElements = document.querySelectorAll('.rfq-count');
+  
+  countElements.forEach(el => {
+    const count = cart.reduce((total, item) => total + item.qty, 0);
+    el.textContent = count > 0 ? `(${count})` : '';
+    el.classList.toggle('visible', count > 0);
+  });
 }
 
 function showNotification(message, type = 'success') {
-  // Create notification element
+  // Remove existing notifications
+  const existing = document.querySelector('.global-notification');
+  if (existing) existing.remove();
+  
+  // Create new notification
   const notification = document.createElement('div');
-  notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+  notification.className = `global-notification alert alert-${type} alert-dismissible fade show`;
   notification.style.cssText = `
+    position: fixed;
     top: 20px;
     right: 20px;
     z-index: 9999;
     min-width: 300px;
+    max-width: 400px;
   `;
+  
   notification.innerHTML = `
     ${message}
     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
   `;
+  
   document.body.appendChild(notification);
   
-  // Auto remove after 3 seconds
+  // Auto-remove after 3 seconds
   setTimeout(() => {
     if (notification.parentNode) {
-      notification.remove();
+      const bsAlert = new bootstrap.Alert(notification);
+      bsAlert.close();
     }
   }, 3000);
 }
 
 // ---------- Catalog Functions ----------
-function populateFilters() {
-  if (!categoryFilter || !segmentFilter) return;
-  
-  const categories = [...new Set(products.map(p => p.category).filter(Boolean))];
-  const segments = [...new Set(products.map(p => p.segment).filter(Boolean))];
-  
-  // Populate category filter
-  categoryFilter.innerHTML = '<option value="">All categories</option>';
-  categories.forEach(cat => {
-    const option = document.createElement('option');
-    option.value = cat;
-    option.textContent = cat;
-    categoryFilter.appendChild(option);
-  });
-  
-  // Populate segment filter
-  segmentFilter.innerHTML = '<option value="">All segments</option>';
-  segments.forEach(seg => {
-    const option = document.createElement('option');
-    option.value = seg;
-    option.textContent = seg;
-    segmentFilter.appendChild(option);
-  });
+async function loadProducts() {
+  try {
+    const snapshot = await getDocs(productsCol);
+    products = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    
+    // Filter active products
+    filteredProducts = products.filter(p => p.isActive !== false);
+    
+    return filteredProducts;
+  } catch (error) {
+    console.error('Error loading products:', error);
+    return [];
+  }
 }
 
-function filterAndSortProducts() {
-  const category = categoryFilter ? categoryFilter.value : '';
-  const segment = segmentFilter ? segmentFilter.value : '';
-  const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
-  const sortValue = sortFilter ? sortFilter.value : 'name-asc';
-  
-  filteredProducts = products.filter(p => {
-    if (p.isActive === false) return false;
-    
-    // Category filter
-    if (category && p.category !== category) return false;
-    
-    // Segment filter
-    if (segment && p.segment !== segment) return false;
-    
-    // Search filter
-    if (searchTerm) {
-      const searchable = [
-        p.name,
-        p.partNumber,
-        p.shortDescription,
-        p.longDescription,
-        ...(p.tags || [])
-      ].join(' ').toLowerCase();
-      return searchable.includes(searchTerm);
-    }
-    
-    return true;
-  });
-  
-  // Sort products
-  filteredProducts.sort((a, b) => {
-    switch (sortValue) {
-      case 'name-asc':
-        return (a.name || '').localeCompare(b.name || '');
-      case 'name-desc':
-        return (b.name || '').localeCompare(a.name || '');
-      default:
-        return 0;
-    }
-  });
-  
-  renderProducts();
-}
-
-function renderProducts() {
+function renderProducts(productsList) {
+  const productListEl = document.getElementById('product-list');
   if (!productListEl) return;
   
-  if (filteredProducts.length === 0) {
-    productListEl.innerHTML = '<div class="col-12"><p class="alert alert-info">No products found.</p></div>';
-    if (catalogEmpty) catalogEmpty.classList.remove('d-none');
+  if (productsList.length === 0) {
+    productListEl.innerHTML = `
+      <div class="col-12">
+        <div class="alert alert-info">
+          No products found. Try changing your filters.
+        </div>
+      </div>
+    `;
     return;
   }
   
-  if (catalogEmpty) catalogEmpty.classList.add('d-none');
-  productListEl.innerHTML = '';
-  
-  filteredProducts.forEach(product => {
-    const cardCol = document.createElement('div');
-    cardCol.className = 'col';
-    
-    cardCol.innerHTML = `
+  productListEl.innerHTML = productsList.map(product => `
+    <div class="col">
       <div class="card product-card h-100 shadow-sm border-0">
-        <div style="height: 200px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+        <div class="product-image-container" style="height: 200px; overflow: hidden;">
           <img src="${product.image || 'assets/images/product-placeholder.png'}" 
                class="card-img-top" 
-               alt="${product.name}" 
-               style="max-height: 100%; max-width: 100%; object-fit: contain;">
+               alt="${product.name}"
+               style="width: 100%; height: 100%; object-fit: contain; padding: 10px;">
         </div>
         <div class="card-body d-flex flex-column">
-          <span class="badge bg-secondary mb-2 align-self-start">${product.category || 'N/A'}</span>
-          <h5 class="card-title fw-semibold mb-1">${product.name}</h5>
-          <p class="card-text small text-muted mb-2">Part No: ${product.partNumber || 'N/A'}</p>
-          <p class="card-text small mb-3">${product.shortDescription || 'No description provided.'}</p>
-          <div class="mt-auto d-flex justify-content-between align-items-center">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <span class="badge bg-secondary">${product.category || 'N/A'}</span>
+            <small class="text-muted">${product.partNumber || ''}</small>
+          </div>
+          <h5 class="card-title fw-semibold mb-2" style="font-size: 1rem;">${product.name}</h5>
+          <p class="card-text small text-muted flex-grow-1">${product.shortDescription || ''}</p>
+          <div class="d-flex justify-content-between align-items-center mt-3">
             <a href="product.html?id=${product.id}" class="btn btn-sm btn-outline-primary">View Details</a>
             <button class="btn btn-sm btn-success add-to-rfq-btn" data-id="${product.id}">
               <i class="bi bi-cart-plus"></i> Add to RFQ
@@ -207,176 +183,298 @@ function renderProducts() {
           </div>
         </div>
       </div>
-    `;
-    productListEl.appendChild(cardCol);
-  });
+    </div>
+  `).join('');
   
   // Add event listeners to Add to RFQ buttons
   document.querySelectorAll('.add-to-rfq-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
-      const id = e.currentTarget.getAttribute('data-id');
-      addToRfq(id, 1);
+      const productId = e.target.closest('.add-to-rfq-btn').dataset.id;
+      addToRfq(productId, 1);
     });
   });
 }
 
+function setupFilters() {
+  const categoryFilter = document.getElementById('category-filter');
+  const segmentFilter = document.getElementById('segment-filter');
+  const sortFilter = document.getElementById('sort-filter');
+  const searchForm = document.getElementById('search-form');
+  const searchInput = document.getElementById('search-input');
+  
+  if (categoryFilter) {
+    // Populate category filter
+    const categories = [...new Set(products.map(p => p.category).filter(Boolean))];
+    categories.forEach(category => {
+      const option = document.createElement('option');
+      option.value = category;
+      option.textContent = category;
+      categoryFilter.appendChild(option);
+    });
+    
+    categoryFilter.addEventListener('change', filterProducts);
+  }
+  
+  if (segmentFilter) {
+    // Populate segment filter
+    const segments = [...new Set(products.map(p => p.segment).filter(Boolean))];
+    segments.forEach(segment => {
+      const option = document.createElement('option');
+      option.value = segment;
+      option.textContent = segment;
+      segmentFilter.appendChild(option);
+    });
+    
+    segmentFilter.addEventListener('change', filterProducts);
+  }
+  
+  if (sortFilter) {
+    sortFilter.addEventListener('change', filterProducts);
+  }
+  
+  if (searchForm && searchInput) {
+    searchForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      filterProducts();
+    });
+    
+    searchInput.addEventListener('input', debounce(filterProducts, 300));
+  }
+}
+
+function filterProducts() {
+  const categoryFilter = document.getElementById('category-filter');
+  const segmentFilter = document.getElementById('segment-filter');
+  const sortFilter = document.getElementById('sort-filter');
+  const searchInput = document.getElementById('search-input');
+  
+  let result = [...filteredProducts];
+  
+  // Apply category filter
+  if (categoryFilter && categoryFilter.value) {
+    result = result.filter(p => p.category === categoryFilter.value);
+  }
+  
+  // Apply segment filter
+  if (segmentFilter && segmentFilter.value) {
+    result = result.filter(p => p.segment === segmentFilter.value);
+  }
+  
+  // Apply search
+  if (searchInput && searchInput.value.trim()) {
+    const searchTerm = searchInput.value.toLowerCase().trim();
+    result = result.filter(p => 
+      (p.name && p.name.toLowerCase().includes(searchTerm)) ||
+      (p.partNumber && p.partNumber.toLowerCase().includes(searchTerm)) ||
+      (p.shortDescription && p.shortDescription.toLowerCase().includes(searchTerm)) ||
+      (p.tags && p.tags.some(tag => tag.toLowerCase().includes(searchTerm)))
+    );
+  }
+  
+  // Apply sorting
+  if (sortFilter) {
+    switch(sortFilter.value) {
+      case 'name-desc':
+        result.sort((a, b) => b.name.localeCompare(a.name));
+        break;
+      default: // 'name-asc'
+        result.sort((a, b) => a.name.localeCompare(b.name));
+    }
+  }
+  
+  renderProducts(result);
+  
+  // Show/hide empty message
+  const emptyMsg = document.getElementById('catalog-empty');
+  if (emptyMsg) {
+    emptyMsg.classList.toggle('d-none', result.length > 0);
+  }
+}
+
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
 // ---------- Product Details ----------
-async function initProductPage() {
+async function loadProductDetails() {
   const params = new URLSearchParams(window.location.search);
   const productId = params.get('id');
-  const detailsContainer = document.getElementById('product-details');
+  const container = document.getElementById('product-details');
   
-  if (!productId || !detailsContainer) {
-    detailsContainer.innerHTML = '<div class="alert alert-danger">Product ID is missing.</div>';
-    return;
-  }
+  if (!productId || !container) return;
   
   try {
     const docRef = doc(db, 'products', productId);
     const docSnap = await getDoc(docRef);
     
-    if (docSnap.exists()) {
-      const product = { id: docSnap.id, ...docSnap.data() };
-      document.title = `${product.name} | Nahj Al-Rasanah`;
-      
-      // Update breadcrumb
-      const breadcrumb = document.querySelector('.breadcrumb .active');
-      if (breadcrumb) breadcrumb.textContent = product.name;
-      
-      detailsContainer.innerHTML = `
-        <div class="row g-5">
-          <div class="col-md-5">
-            <div class="card shadow-sm mb-3">
-              <div class="card-body text-center">
-                <img src="${product.image || 'assets/images/product-placeholder.png'}" 
-                     class="img-fluid rounded" 
-                     alt="${product.name}"
-                     style="max-height: 400px;">
-              </div>
-            </div>
-            ${product.datasheet ? `
-            <div class="card shadow-sm">
-              <div class="card-body">
-                <h6 class="fw-semibold mb-2">Datasheet</h6>
-                <a href="${product.datasheet}" target="_blank" class="btn btn-outline-info w-100">
-                  <i class="bi bi-file-earmark-pdf"></i> Download PDF Datasheet
-                </a>
-              </div>
-            </div>
-            ` : ''}
-          </div>
-          <div class="col-md-7">
-            <h1 class="fw-bold mb-2">${product.name}</h1>
-            <div class="d-flex gap-2 mb-3">
-              <span class="badge bg-primary">${product.partNumber || 'N/A'}</span>
-              <span class="badge bg-secondary">${product.category || 'N/A'}</span>
-              ${product.segment ? `<span class="badge bg-info">${product.segment}</span>` : ''}
-            </div>
-            
-            <p class="lead mb-4">${product.shortDescription || ''}</p>
-            
-            ${product.longDescription ? `
-            <div class="mb-4">
-              <h5 class="fw-semibold mb-2">Description</h5>
-              <p>${product.longDescription}</p>
-            </div>
-            ` : ''}
-            
-            <div class="d-grid gap-2 d-md-flex justify-content-md-start mb-5">
-              <button class="btn btn-lg btn-success add-to-rfq-detail-btn" data-id="${product.id}">
-                <i class="bi bi-cart-plus"></i> Add to RFQ
-              </button>
-              <a href="rfq.html" class="btn btn-lg btn-outline-primary">
-                <i class="bi bi-cart"></i> View RFQ Basket
-              </a>
-            </div>
-            
-            <div class="card shadow-sm">
-              <div class="card-body">
-                <h5 class="fw-semibold mb-3">Technical Specifications</h5>
-                <div class="table-responsive">
-                  <table class="table table-striped table-sm">
-                    <tbody>
-                      ${product.specs ? Object.entries(product.specs).map(([key, value]) => `
-                        <tr>
-                          <th style="width: 40%;">${key}</th>
-                          <td>${value}</td>
-                        </tr>
-                      `).join('') : `
-                        <tr>
-                          <td colspan="2" class="text-center text-muted">No specifications provided.</td>
-                        </tr>
-                      `}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-            
-            ${product.tags && product.tags.length > 0 ? `
-            <div class="mt-3">
-              <h6 class="fw-semibold mb-2">Tags</h6>
-              <div class="d-flex flex-wrap gap-2">
-                ${product.tags.map(tag => `<span class="badge bg-light text-dark border">${tag}</span>`).join('')}
-              </div>
-            </div>
-            ` : ''}
-          </div>
+    if (!docSnap.exists()) {
+      container.innerHTML = `
+        <div class="alert alert-warning">
+          Product not found. <a href="index.html#catalog">Return to catalog</a>
         </div>
       `;
-      
-      // Add event listener for Add to RFQ button
-      const addToRfqBtn = detailsContainer.querySelector('.add-to-rfq-detail-btn');
-      if (addToRfqBtn) {
-        addToRfqBtn.addEventListener('click', () => {
-          addToRfq(product.id, 1);
-        });
-      }
-      
-    } else {
-      detailsContainer.innerHTML = '<div class="alert alert-warning">Product not found.</div>';
+      return;
     }
+    
+    const product = { id: docSnap.id, ...docSnap.data() };
+    
+    // Update page title
+    document.title = `${product.name} | Nahj Al-Rasanah`;
+    
+    // Update breadcrumb
+    const breadcrumb = document.querySelector('.breadcrumb .active');
+    if (breadcrumb) breadcrumb.textContent = product.name;
+    
+    container.innerHTML = `
+      <div class="row g-4">
+        <div class="col-lg-5">
+          <div class="card shadow-sm mb-3">
+            <div class="card-body text-center p-4">
+              <img src="${product.image || 'assets/images/product-placeholder.png'}" 
+                   class="img-fluid rounded" 
+                   alt="${product.name}"
+                   style="max-height: 300px;">
+            </div>
+          </div>
+          
+          ${product.datasheet ? `
+          <div class="card shadow-sm mb-3">
+            <div class="card-body">
+              <h6 class="fw-semibold mb-2">Documentation</h6>
+              <a href="${product.datasheet}" 
+                 target="_blank" 
+                 class="btn btn-outline-info w-100">
+                <i class="bi bi-file-earmark-pdf"></i> Download Datasheet
+              </a>
+            </div>
+          </div>
+          ` : ''}
+        </div>
+        
+        <div class="col-lg-7">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <div>
+              <h1 class="h3 fw-bold mb-2">${product.name}</h1>
+              <div class="d-flex gap-2 mb-3">
+                <span class="badge bg-primary">${product.partNumber || 'N/A'}</span>
+                <span class="badge bg-secondary">${product.category || 'N/A'}</span>
+                ${product.segment ? `<span class="badge bg-info">${product.segment}</span>` : ''}
+              </div>
+            </div>
+            <button class="btn btn-success add-to-rfq-detail-btn" data-id="${product.id}">
+              <i class="bi bi-cart-plus"></i> Add to RFQ
+            </button>
+          </div>
+          
+          <p class="lead text-muted mb-4">${product.shortDescription || ''}</p>
+          
+          ${product.longDescription ? `
+          <div class="card shadow-sm mb-4">
+            <div class="card-body">
+              <h5 class="fw-semibold mb-3">Product Description</h5>
+              <p class="mb-0">${product.longDescription}</p>
+            </div>
+          </div>
+          ` : ''}
+          
+          <div class="card shadow-sm">
+            <div class="card-body">
+              <h5 class="fw-semibold mb-3">Technical Specifications</h5>
+              <div class="table-responsive">
+                <table class="table table-striped table-sm">
+                  <tbody>
+                    ${product.specs ? Object.entries(product.specs).map(([key, value]) => `
+                      <tr>
+                        <th style="width: 40%;">${key}</th>
+                        <td>${value}</td>
+                      </tr>
+                    `).join('') : `
+                      <tr>
+                        <td colspan="2" class="text-center text-muted">
+                          No specifications available
+                        </td>
+                      </tr>
+                    `}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          
+          ${product.tags && product.tags.length > 0 ? `
+          <div class="mt-3">
+            <h6 class="fw-semibold mb-2">Tags</h6>
+            <div class="d-flex flex-wrap gap-2">
+              ${product.tags.map(tag => `<span class="badge bg-light text-dark border">${tag}</span>`).join('')}
+            </div>
+          </div>
+          ` : ''}
+        </div>
+      </div>
+    `;
+    
+    // Add event listener for Add to RFQ button
+    const addBtn = container.querySelector('.add-to-rfq-detail-btn');
+    if (addBtn) {
+      addBtn.addEventListener('click', () => {
+        addToRfq(product.id, 1);
+      });
+    }
+    
   } catch (error) {
     console.error('Error loading product:', error);
-    detailsContainer.innerHTML = '<div class="alert alert-danger">Error loading product details.</div>';
+    container.innerHTML = `
+      <div class="alert alert-danger">
+        Error loading product details. Please try again later.
+      </div>
+    `;
   }
 }
 
 // ---------- RFQ Page Functions ----------
-function initRfqPage() {
-  const rfqTableBody = document.getElementById('rfq-table-body');
-  const rfqEmpty = document.getElementById('rfq-empty');
+function renderRfqTable() {
+  const tableBody = document.getElementById('rfq-table-body');
+  const emptyMsg = document.getElementById('rfq-empty');
+  const clearBtn = document.getElementById('btn-clear-rfq');
   const rfqForm = document.getElementById('rfq-form');
-  const clearRfqBtn = document.getElementById('btn-clear-rfq');
   
-  if (!rfqTableBody) return;
+  if (!tableBody) return;
   
-  function renderRfqTable() {
-    const cart = getRfqCart();
+  const cart = getRfqCart();
+  
+  if (cart.length === 0) {
+    tableBody.innerHTML = '';
+    if (emptyMsg) emptyMsg.classList.remove('d-none');
+    if (rfqForm) rfqForm.classList.add('d-none');
+    return;
+  }
+  
+  if (emptyMsg) emptyMsg.classList.add('d-none');
+  if (rfqForm) rfqForm.classList.remove('d-none');
+  
+  tableBody.innerHTML = cart.map(item => {
+    const product = products.find(p => p.id === item.id) || {
+      name: 'Unknown Product',
+      partNumber: 'N/A',
+      category: 'N/A'
+    };
     
-    if (cart.length === 0) {
-      rfqTableBody.innerHTML = '';
-      if (rfqEmpty) rfqEmpty.classList.remove('d-none');
-      return;
-    }
-    
-    if (rfqEmpty) rfqEmpty.classList.add('d-none');
-    rfqTableBody.innerHTML = '';
-    
-    cart.forEach(item => {
-      const product = products.find(p => p.id === item.id) || { 
-        name: 'Unknown Product', 
-        partNumber: 'N/A', 
-        category: 'N/A' 
-      };
-      
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
+    return `
+      <tr>
         <td>${product.name}</td>
         <td>${product.partNumber}</td>
         <td>
-          <input type="number" class="form-control form-control-sm rfq-qty-input" 
-                 data-id="${item.id}" 
+          <input type="number" 
+                 class="form-control form-control-sm rfq-qty-input" 
+                 data-id="${item.id}"
                  value="${item.qty}" 
                  min="1" 
                  style="width: 80px;">
@@ -387,180 +485,205 @@ function initRfqPage() {
             Remove
           </button>
         </td>
-      `;
-      rfqTableBody.appendChild(tr);
-    });
-    
-    // Add event listeners
-    document.querySelectorAll('.rfq-qty-input').forEach(input => {
-      input.addEventListener('change', (e) => {
-        const id = e.target.getAttribute('data-id');
-        const qty = parseInt(e.target.value);
-        if (qty > 0) {
-          updateRfqItem(id, qty);
-        }
-      });
-    });
-    
-    document.querySelectorAll('.rfq-remove-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const id = e.currentTarget.getAttribute('data-id');
-        removeRfqItem(id);
-      });
-    });
-  }
+      </tr>
+    `;
+  }).join('');
   
-  function updateRfqItem(id, qty) {
-    const cart = getRfqCart();
-    const idx = cart.findIndex((c) => c.id === id);
-    if (idx >= 0) {
-      cart[idx].qty = qty;
-      saveRfqCart(cart);
-      renderRfqTable();
-    }
-  }
-  
-  function removeRfqItem(id) {
-    const cart = getRfqCart().filter((c) => c.id !== id);
-    saveRfqCart(cart);
-    renderRfqTable();
-    showNotification('Item removed from RFQ basket.', 'warning');
-  }
-  
-  if (clearRfqBtn) {
-    clearRfqBtn.addEventListener('click', () => {
-      if (confirm('Are you sure you want to clear all items from your RFQ basket?')) {
-        localStorage.removeItem(STORAGE_KEY_RFQ);
-        renderRfqTable();
-        updateRfqCount();
-        showNotification('RFQ basket cleared.', 'info');
-      }
-    });
-  }
-  
-  if (rfqForm) {
-    rfqForm.addEventListener('submit', (e) => {
-      e.preventDefault();
+  // Add event listeners
+  tableBody.querySelectorAll('.rfq-qty-input').forEach(input => {
+    input.addEventListener('change', (e) => {
+      const id = e.target.dataset.id;
+      const qty = parseInt(e.target.value) || 1;
       const cart = getRfqCart();
-      
-      if (cart.length === 0) {
-        showNotification('Your RFQ basket is empty.', 'warning');
-        return;
+      const item = cart.find(item => item.id === id);
+      if (item) {
+        item.qty = qty;
+        saveRfqCart(cart);
+        renderRfqTable();
       }
+    });
+  });
+  
+  tableBody.querySelectorAll('.rfq-remove-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = e.target.closest('.rfq-remove-btn').dataset.id;
+      removeRfqItem(id);
+      renderRfqTable();
+      showNotification('Item removed from RFQ basket', 'warning');
+    });
+  });
+  
+  if (clearBtn) {
+    clearBtn.onclick = () => {
+      if (confirm('Are you sure you want to clear all items from your RFQ basket?')) {
+        clearRfqCart();
+        renderRfqTable();
+        showNotification('RFQ basket cleared', 'info');
+      }
+    };
+  }
+}
+
+function setupRfqForm() {
+  const form = document.getElementById('rfq-form');
+  if (!form) return;
+  
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const cart = getRfqCart();
+    if (cart.length === 0) {
+      showNotification('Your RFQ basket is empty', 'warning');
+      return;
+    }
+    
+    // Get form data
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+    
+    // Prepare items list
+    const items = cart.map(item => {
+      const product = products.find(p => p.id === item.id) || {};
+      return {
+        id: item.id,
+        qty: item.qty,
+        name: product.name || 'Unknown',
+        partNumber: product.partNumber || 'N/A'
+      };
+    });
+    
+    try {
+      // Save to Firestore
+      const rfqDoc = {
+        ...data,
+        items,
+        createdAt: serverTimestamp(),
+        status: 'pending'
+      };
       
-      // Prepare email content
-      const company = rfqForm.querySelector('[name="company"]').value;
-      const contact = rfqForm.querySelector('[name="contact"]').value;
-      const email = rfqForm.querySelector('[name="email"]').value;
-      const phone = rfqForm.querySelector('[name="phone"]').value;
-      const project = rfqForm.querySelector('[name="project"]').value || 'N/A';
-      const delivery = rfqForm.querySelector('[name="delivery"]').value || 'N/A';
-      const notes = rfqForm.querySelector('[name="notes"]').value || 'N/A';
+      await addDoc(rfqsCol, rfqDoc);
       
-      let emailBody = `RFQ Request\n\n`;
-      emailBody += `Company: ${company}\n`;
-      emailBody += `Contact Person: ${contact}\n`;
-      emailBody += `Email: ${email}\n`;
-      emailBody += `Phone: ${phone}\n`;
-      emailBody += `Project/Field: ${project}\n`;
-      emailBody += `Delivery Location/INCOTERM: ${delivery}\n\n`;
-      emailBody += `REQUESTED ITEMS:\n`;
-      emailBody += '----------------------------------------\n';
-      
-      cart.forEach(item => {
-        const product = products.find(p => p.id === item.id) || { name: 'Unknown', partNumber: 'N/A' };
-        emailBody += `${item.qty}x ${product.name} (Part No: ${product.partNumber})\n`;
-      });
-      
-      emailBody += '\nAdditional Notes:\n';
-      emailBody += notes;
-      emailBody += '\n\n---\n';
-      emailBody += 'This RFQ was generated from Nahj Al-Rasanah Oil & Gas Supplies Store';
-      
-      // Create mailto link
-      const mailtoLink = `mailto:sales@nahjalrasanah.com?subject=RFQ from ${company}&body=${encodeURIComponent(emailBody)}`;
+      // Prepare email
+      const emailBody = `
+        RFQ Request from Nahj Al-Rasanah Store
+        
+        Company: ${data.company}
+        Contact Person: ${data.contact}
+        Email: ${data.email}
+        Phone: ${data.phone}
+        Project: ${data.project || 'Not specified'}
+        Delivery: ${data.delivery || 'Not specified'}
+        
+        Requested Items:
+        ${items.map(item => `  - ${item.qty}x ${item.name} (Part: ${item.partNumber})`).join('\n')}
+        
+        Additional Notes:
+        ${data.notes || 'None'}
+        
+        ---
+        This RFQ was submitted through the Nahj Al-Rasanah Online Store.
+      `;
       
       // Open email client
-      window.location.href = mailtoLink;
+      const mailtoLink = `mailto:sales@nahjalrasanah.com?subject=RFQ from ${data.company}&body=${encodeURIComponent(emailBody)}`;
+      window.open(mailtoLink, '_blank');
       
-      showNotification('RFQ prepared! Please review and send the email.', 'success');
-    });
-  }
-  
-  renderRfqTable();
+      // Clear cart and show success message
+      clearRfqCart();
+      form.reset();
+      renderRfqTable();
+      showNotification('RFQ submitted successfully! Email client opened.', 'success');
+      
+    } catch (error) {
+      console.error('Error submitting RFQ:', error);
+      showNotification('Error submitting RFQ. Please try again.', 'danger');
+    }
+  });
 }
 
-// ---------- Main Initialization ----------
-async function initHome() {
-  try {
-    const snapshot = await getDocs(collection(db, 'products'));
-    products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    filteredProducts = products.filter(p => p.isActive !== false);
-    
-    populateFilters();
-    filterAndSortProducts();
-    
-    // Add event listeners for filters
-    if (categoryFilter) categoryFilter.addEventListener('change', filterAndSortProducts);
-    if (segmentFilter) segmentFilter.addEventListener('change', filterAndSortProducts);
-    if (sortFilter) sortFilter.addEventListener('change', filterAndSortProducts);
-    if (searchForm) {
-      searchForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        filterAndSortProducts();
-      });
-    }
-    
-  } catch (err) {
-    console.error('Error loading products:', err);
-    if (productListEl) {
-      productListEl.innerHTML = '<div class="col-12"><div class="alert alert-danger">Error loading product catalog. Please try again later.</div></div>';
-    }
-  }
-}
-
-function initCommon() {
-  // Update copyright year
-  const yearSpan = document.getElementById('year');
-  if (yearSpan) yearSpan.textContent = new Date().getFullYear();
+// ---------- Authentication ----------
+function setupAuth() {
+  const authLink = document.getElementById('auth-link');
+  const authButton = document.getElementById('auth-button');
   
-  // Update RFQ count
-  updateRfqCount();
+  const elements = [];
+  if (authLink) elements.push(authLink);
+  if (authButton) elements.push(authButton);
   
-  // Authentication state
   onAuthStateChanged(auth, (user) => {
-    const authButtons = document.querySelectorAll('#auth-button, #auth-link');
-    authButtons.forEach(btn => {
+    elements.forEach(el => {
       if (user) {
-        btn.innerHTML = '<i class="bi bi-box-arrow-right"></i> Logout';
-        btn.href = '#';
-        btn.addEventListener('click', (e) => {
+        // User is signed in
+        el.innerHTML = '<i class="bi bi-box-arrow-right"></i> Logout';
+        el.href = '#';
+        el.onclick = async (e) => {
           e.preventDefault();
-          signOut(auth).then(() => {
+          try {
+            await signOut(auth);
             window.location.reload();
-          });
-        });
+          } catch (error) {
+            console.error('Logout error:', error);
+          }
+        };
       } else {
-        btn.innerHTML = '<i class="bi bi-person-fill-lock"></i> Admin Login';
-        btn.href = 'admin.html';
-        btn.removeEventListener('click', () => {});
+        // User is signed out
+        el.innerHTML = '<i class="bi bi-person-fill-lock"></i> Admin Login';
+        el.href = 'admin.html';
+        el.onclick = null;
       }
     });
   });
 }
 
-// ---------- Initialize based on page ----------
-document.addEventListener('DOMContentLoaded', () => {
+// ---------- Initialize ----------
+async function initHome() {
+  await loadProducts();
+  renderProducts(filteredProducts);
+  setupFilters();
+  updateRfqCount();
+}
+
+async function initRfq() {
+  await loadProducts();
+  renderRfqTable();
+  setupRfqForm();
+  updateRfqCount();
+}
+
+async function initProduct() {
+  await loadProductDetails();
+  updateRfqCount();
+}
+
+function initCommon() {
+  // Update copyright year
+  const yearSpan = document.getElementById('year');
+  if (yearSpan) {
+    yearSpan.textContent = new Date().getFullYear();
+  }
+  
+  // Setup authentication
+  setupAuth();
+  
+  // Update RFQ count on all pages
+  updateRfqCount();
+}
+
+// ---------- Main Entry Point ----------
+document.addEventListener('DOMContentLoaded', async () => {
   initCommon();
+  
   const page = document.body.getAttribute('data-page');
   
-  if (page === 'home') {
-    initHome();
-  } else if (page === 'product') {
-    initProductPage();
-  } else if (page === 'rfq') {
-    initHome().then(() => {
-      initRfqPage();
-    });
+  switch(page) {
+    case 'home':
+      await initHome();
+      break;
+    case 'rfq':
+      await initRfq();
+      break;
+    case 'product':
+      await initProduct();
+      break;
   }
 });
