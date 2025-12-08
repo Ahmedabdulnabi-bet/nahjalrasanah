@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Nahj Al-Rasanah | My RFQs</title>
+    <link rel="icon" type="image/png" href="assets/images/logo-store.png">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="assets/css/styles.css">
+  </head>
+  <body data-page="vendor-rfqs">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm sticky-top">
+      <div class="container">
+        <a class="navbar-brand d-flex align-items-center gap-2" href="index.html">
+          <img src="assets/images/logo-store.png" alt="Nahj Oil &amp; Gas Store" width="32" height="32" class="rounded-circle border border-secondary">
+          <span class="fw-semibold">
+            Nahj Al-Rasanah<br>
+            <small class="text-muted" style="font-size:0.7rem;">Vendor RFQs</small>
+          </span>
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="mainNavbar">
+          <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+            <li class="nav-item">
+              <a class="nav-link" href="index.html">
+                <i class="bi bi-house"></i> Store Front
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="vendor-dashboard.html">
+                <i class="bi bi-speedometer2"></i> Dashboard
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="vendor-products.html">
+                <i class="bi bi-box"></i> My Products
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link active" href="vendor-rfqs.html">
+                <i class="bi bi-envelope"></i> RFQs
+                <span id="rfq-count-badge" class="badge bg-danger d-none">0</span>
+              </a>
+            </li>
+          </ul>
+          <button id="logout-btn" class="btn btn-outline-light btn-sm ms-lg-3">
+            <i class="bi bi-box-arrow-right"></i> Logout
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <main class="py-4">
+      <div class="container">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h1 class="h3 fw-bold mb-1">My RFQs</h1>
+            <p class="text-muted mb-0">View and manage requests for your products</p>
+          </div>
+          <div class="d-flex gap-2">
+            <button id="refresh-rfqs-btn" class="btn btn-outline-primary btn-sm">
+              <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+            <div class="dropdown">
+              <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                <i class="bi bi-filter"></i> Filter
+              </button>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item filter-option" href="#" data-filter="all">All RFQs</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item filter-option" href="#" data-filter="pending">Pending</a></li>
+                <li><a class="dropdown-item filter-option" href="#" data-filter="reviewed">Reviewed</a></li>
+                <li><a class="dropdown-item filter-option" href="#" data-filter="responded">Responded</a></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="row mb-4">
+          <div class="col-md-3 mb-3">
+            <div class="card">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <h6 class="card-subtitle mb-2 text-muted">Total</h6>
+                    <h3 class="card-title mb-0" id="stats-total">0</h3>
+                  </div>
+                  <i class="bi bi-envelope display-6 text-primary opacity-50"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3 mb-3">
+            <div class="card">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <h6 class="card-subtitle mb-2 text-muted">Pending</h6>
+                    <h3 class="card-title mb-0" id="stats-pending">0</h3>
+                  </div>
+                  <i class="bi bi-clock display-6 text-warning opacity-50"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3 mb-3">
+            <div class="card">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <h6 class="card-subtitle mb-2 text-muted">This Week</h6>
+                    <h3 class="card-title mb-0" id="stats-week">0</h3>
+                  </div>
+                  <i class="bi bi-calendar-week display-6 text-info opacity-50"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3 mb-3">
+            <div class="card">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <h6 class="card-subtitle mb-2 text-muted">Today</h6>
+                    <h3 class="card-title mb-0" id="stats-today">0</h3>
+                  </div>
+                  <i class="bi bi-calendar-day display-6 text-success opacity-50"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RFQs Table -->
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle">
+                <thead class="table-light">
+                  <tr>
+                    <th>Company</th>
+                    <th>Contact</th>
+                    <th>Products</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th class="text-end">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="rfqs-table-body">
+                  <!-- RFQs will be loaded here -->
+                </tbody>
+              </table>
+            </div>
+            
+            <!-- Empty State -->
+            <div id="rfqs-empty" class="text-center py-5 d-none">
+              <i class="bi bi-envelope display-4 text-muted mb-3"></i>
+              <h5 class="mb-2">No RFQs Yet</h5>
+              <p class="text-muted mb-3">You haven't received any RFQs for your products yet.</p>
+              <a href="index.html" class="btn btn-primary">
+                <i class="bi bi-eye"></i> View Your Products
+              </a>
+            </div>
+            
+            <!-- Loading State -->
+            <div id="rfqs-loading" class="text-center py-4">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+              <p class="text-muted mt-2">Loading RFQs...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal fade" id="deleteModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Confirm Deletion</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p>Are you sure you want to delete this RFQ?</p>
+            <p class="small text-muted">This action cannot be undone.</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-danger" id="confirm-delete-btn">
+              <i class="bi bi-trash"></i> Delete RFQ
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RFQ Detail Modal -->
+    <div class="modal fade" id="rfqDetailModal" tabindex="-1">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">RFQ Details</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body" id="rfq-detail-content">
+            <!-- RFQ details will be loaded here -->
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <button type="button" class="btn btn-primary" id="respond-rfq-btn">
+              <i class="bi bi-reply"></i> Respond
+            </button>
+            <button type="button" class="btn btn-danger" id="delete-rfq-btn" data-rfq-id="">
+              <i class="bi bi-trash"></i> Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="bg-dark text-light mt-5 pt-4 pb-3">
+      <div class="container">
+        <div class="row gy-3">
+          <div class="col-md-6">
+            <h6 class="fw-semibold mb-2">Nahj Al-Rasanah Vendor Platform</h6>
+            <p class="small mb-1">
+              Oil &amp; Gas Supplies – Vendor RFQs Management
+            </p>
+            <p class="small mb-0">
+              Phone: +964 784 349 9555 · Email: <a href="mailto:vendors@nahjalrasanah.com" class="link-light text-decoration-none">vendors@nahjalrasanah.com</a>
+            </p>
+          </div>
+          <div class="col-md-3">
+            <h6 class="fw-semibold mb-2">Quick Links</h6>
+            <ul class="list-unstyled small mb-0">
+              <li><a href="vendor-dashboard.html" class="link-light text-decoration-none">Dashboard</a></li>
+              <li><a href="vendor-products.html" class="link-light text-decoration-none">My Products</a></li>
+              <li><a href="vendor-rfqs.html" class="link-light text-decoration-none">RFQs</a></li>
+            </ul>
+          </div>
+          <div class="col-md-3">
+            <h6 class="fw-semibold mb-2">Need Help?</h6>
+            <p class="small mb-0">
+              Contact support for assistance with RFQs.
+            </p>
+          </div>
+        </div>
+        <hr class="border-secondary my-3">
+        <p class="small text-center mb-0">&copy; <span id="year"></span> Nahj Al-Rasanah LLC. All rights reserved.</p>
+      </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="assets/js/vendor-rfqs.js"></script>
+  </body>
+</html>

@@ -1,17 +1,14 @@
-// assets/js/app.js
+// assets/js/app.js - نسخة معدلة للبائعين
 
 import { firebaseConfig } from './firebase-config.js';
-
 import { 
   initializeApp 
 } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js';
-
 import { 
   getAuth,
   onAuthStateChanged,
   signOut
 } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js';
-
 import {
   getFirestore,
   collection,
@@ -71,24 +68,18 @@ function addToRfq(itemId, qty = 1) {
   showNotification('Product added to RFQ basket!', 'success');
 }
 
-function removeRfqItem(itemId) {
-  const cart = getRfqCart().filter(item => item.id !== itemId);
-  saveRfqCart(cart);
-}
-
-function clearRfqCart() {
-  localStorage.removeItem(STORAGE_KEY_RFQ);
-  updateRfqCount();
-}
-
 function updateRfqCount() {
   const cart = getRfqCart();
-  const countElements = document.querySelectorAll('.rfq-count');
+  const count = cart.reduce((total, item) => total + item.qty, 0);
   
-  countElements.forEach(el => {
-    const count = cart.reduce((total, item) => total + item.qty, 0);
-    el.textContent = count > 0 ? `(${count})` : '';
-    el.classList.toggle('visible', count > 0);
+  // Update all RFQ count elements
+  document.querySelectorAll('.rfq-count').forEach(el => {
+    if (count > 0) {
+      el.textContent = count;
+      el.classList.remove('d-none');
+    } else {
+      el.classList.add('d-none');
+    }
   });
 }
 
@@ -482,7 +473,7 @@ function renderRfqTable() {
         <td>${product.category}</td>
         <td>
           <button class="btn btn-sm btn-outline-danger rfq-remove-btn" data-id="${item.id}">
-            Remove
+            <i class="bi bi-trash"></i>
           </button>
         </td>
       </tr>
@@ -508,8 +499,6 @@ function renderRfqTable() {
     btn.addEventListener('click', (e) => {
       const id = e.target.closest('.rfq-remove-btn').dataset.id;
       removeRfqItem(id);
-      renderRfqTable();
-      showNotification('Item removed from RFQ basket', 'warning');
     });
   });
   
@@ -522,6 +511,18 @@ function renderRfqTable() {
       }
     };
   }
+}
+
+function removeRfqItem(itemId) {
+  const cart = getRfqCart().filter(item => item.id !== itemId);
+  saveRfqCart(cart);
+  renderRfqTable();
+  showNotification('Item removed from RFQ basket', 'warning');
+}
+
+function clearRfqCart() {
+  localStorage.removeItem(STORAGE_KEY_RFQ);
+  updateRfqCount();
 }
 
 function setupRfqForm() {
@@ -541,16 +542,35 @@ function setupRfqForm() {
     const formData = new FormData(form);
     const data = Object.fromEntries(formData.entries());
     
-    // Prepare items list
-    const items = cart.map(item => {
+    // Prepare items list with vendor information
+    const items = await Promise.all(cart.map(async (item) => {
       const product = products.find(p => p.id === item.id) || {};
+      
+      // Get vendor info from product
+      let vendorInfo = {};
+      if (product.id) {
+        try {
+          const productDoc = await getDoc(doc(db, 'products', product.id));
+          if (productDoc.exists()) {
+            const productData = productDoc.data();
+            vendorInfo = {
+              vendorId: productData.vendorId || null,
+              vendorEmail: productData.vendorEmail || null
+            };
+          }
+        } catch (error) {
+          console.error('Error getting vendor info:', error);
+        }
+      }
+      
       return {
         id: item.id,
         qty: item.qty,
         name: product.name || 'Unknown',
-        partNumber: product.partNumber || 'N/A'
+        partNumber: product.partNumber || 'N/A',
+        ...vendorInfo
       };
-    });
+    }));
     
     try {
       // Save to Firestore
@@ -558,14 +578,15 @@ function setupRfqForm() {
         ...data,
         items,
         createdAt: serverTimestamp(),
-        status: 'pending'
+        status: 'pending',
+        viewed: false
       };
       
       await addDoc(rfqsCol, rfqDoc);
       
       // Prepare email
       const emailBody = `
-        RFQ Request from Nahj Al-Rasanah Store
+        New RFQ Request - Nahj Al-Rasanah Platform
         
         Company: ${data.company}
         Contact Person: ${data.contact}
@@ -581,11 +602,12 @@ function setupRfqForm() {
         ${data.notes || 'None'}
         
         ---
-        This RFQ was submitted through the Nahj Al-Rasanah Online Store.
+        This RFQ was submitted through Nahj Al-Rasanah Platform.
+        Vendors can view this RFQ in their dashboard.
       `;
       
       // Open email client
-      const mailtoLink = `mailto:sales@nahjalrasanah.com?subject=RFQ from ${data.company}&body=${encodeURIComponent(emailBody)}`;
+      const mailtoLink = `mailto:sales@nahjalrasanah.com?subject=New RFQ from ${data.company}&body=${encodeURIComponent(emailBody)}`;
       window.open(mailtoLink, '_blank');
       
       // Clear cart and show success message
@@ -614,22 +636,14 @@ function setupAuth() {
     elements.forEach(el => {
       if (user) {
         // User is signed in
-        el.innerHTML = '<i class="bi bi-box-arrow-right"></i> Logout';
-        el.href = '#';
-        el.onclick = async (e) => {
-          e.preventDefault();
-          try {
-            await signOut(auth);
-            window.location.reload();
-          } catch (error) {
-            console.error('Logout error:', error);
-          }
-        };
+        el.innerHTML = '<i class="bi bi-person-circle"></i> Dashboard';
+        el.href = 'vendor-dashboard.html'; // صفحة خاصة بالبائعين
+        el.title = 'Go to Vendor Dashboard';
       } else {
         // User is signed out
-        el.innerHTML = '<i class="bi bi-person-fill-lock"></i> Admin Login';
-        el.href = 'admin.html';
-        el.onclick = null;
+        el.innerHTML = '<i class="bi bi-person-fill-lock"></i> Vendor Login';
+        el.href = 'vendor-login.html'; // صفحة تسجيل دخول البائعين
+        el.title = 'Vendor Login';
       }
     });
   });
