@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en" dir="ltr">
   <head>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Nahj Al-Rasanah | Vendor Dashboard</title>
@@ -8,8 +9,18 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="assets/css/styles.css">
+    <style>
+      .dashboard-card {
+        transition: transform 0.2s;
+        cursor: pointer;
+      }
+      .dashboard-card:hover {
+        transform: translateY(-5px);
+      }
+    </style>
   </head>
   <body data-page="vendor-dashboard">
+    <!-- نفس Navbar من index.html -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm sticky-top">
       <div class="container">
         <a class="navbar-brand d-flex align-items-center gap-2" href="index.html">
@@ -19,51 +30,21 @@
             <small class="text-muted" style="font-size:0.7rem;">Vendor Dashboard</small>
           </span>
         </a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
-          <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="mainNavbar">
-          <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-            <li class="nav-item">
-              <a class="nav-link" href="index.html">
-                <i class="bi bi-house"></i> Store Front
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link active" href="vendor-dashboard.html">
-                <i class="bi bi-speedometer2"></i> Dashboard
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="vendor-products.html">
-                <i class="bi bi-box"></i> My Products
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="vendor-rfqs.html">
-                <i class="bi bi-envelope"></i> RFQs
-                <span id="rfq-notification-badge" class="badge bg-danger d-none">0</span>
-              </a>
-            </li>
-          </ul>
-          <button id="logout-btn" class="btn btn-outline-light btn-sm ms-lg-3">
-            <i class="bi bi-box-arrow-right"></i> Logout
-          </button>
-        </div>
+        <div id="auth-nav-container"></div>
       </div>
     </nav>
 
     <main class="py-4">
       <div class="container">
-        <!-- Welcome Message -->
+        <!-- Welcome Header -->
         <div class="row mb-4">
           <div class="col-12">
-            <div class="card bg-primary text-white">
+            <div class="card bg-primary text-white border-0">
               <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                   <div>
-                    <h4 class="card-title mb-1">Welcome, <span id="vendor-name">Vendor</span></h4>
-                    <p class="card-text mb-0">Manage your products and view requests from customers</p>
+                    <h1 class="h3 mb-2">Vendor Dashboard</h1>
+                    <p class="mb-0">Manage your products and view customer requests</p>
                   </div>
                   <i class="bi bi-shop display-4 opacity-50"></i>
                 </div>
@@ -75,12 +56,12 @@
         <!-- Stats Cards -->
         <div class="row mb-4">
           <div class="col-md-3 mb-3">
-            <div class="card border-primary">
+            <div class="card dashboard-card border-primary" onclick="window.location.href='vendor-products.html'">
               <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                   <div>
                     <h6 class="card-subtitle mb-2 text-muted">My Products</h6>
-                    <h3 class="card-title mb-0" id="total-products">0</h3>
+                    <h3 class="card-title mb-0" id="products-count">0</h3>
                   </div>
                   <i class="bi bi-box display-6 text-primary opacity-50"></i>
                 </div>
@@ -88,12 +69,12 @@
             </div>
           </div>
           <div class="col-md-3 mb-3">
-            <div class="card border-warning">
+            <div class="card dashboard-card border-warning" onclick="window.location.href='vendor-rfqs.html'">
               <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                   <div>
                     <h6 class="card-subtitle mb-2 text-muted">Total RFQs</h6>
-                    <h3 class="card-title mb-0" id="total-rfqs">0</h3>
+                    <h3 class="card-title mb-0" id="rfqs-count">0</h3>
                   </div>
                   <i class="bi bi-envelope display-6 text-warning opacity-50"></i>
                 </div>
@@ -101,12 +82,12 @@
             </div>
           </div>
           <div class="col-md-3 mb-3">
-            <div class="card border-success">
+            <div class="card dashboard-card border-success">
               <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                   <div>
-                    <h6 class="card-subtitle mb-2 text-muted">Pending RFQs</h6>
-                    <h3 class="card-title mb-0" id="pending-rfqs">0</h3>
+                    <h6 class="card-subtitle mb-2 text-muted">Pending</h6>
+                    <h3 class="card-title mb-0" id="pending-count">0</h3>
                   </div>
                   <i class="bi bi-clock display-6 text-success opacity-50"></i>
                 </div>
@@ -114,87 +95,86 @@
             </div>
           </div>
           <div class="col-md-3 mb-3">
-            <div class="card border-info">
+            <div class="card dashboard-card border-info">
               <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                   <div>
-                    <h6 class="card-subtitle mb-2 text-muted">This Month</h6>
-                    <h3 class="card-title mb-0" id="month-rfqs">0</h3>
+                    <h6 class="card-subtitle mb-2 text-muted">Active</h6>
+                    <h3 class="card-title mb-0" id="active-count">0</h3>
                   </div>
-                  <i class="bi bi-calendar-month display-6 text-info opacity-50"></i>
+                  <i class="bi bi-check-circle display-6 text-info opacity-50"></i>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Recent RFQs -->
+        <!-- Quick Actions -->
+        <div class="row mb-4">
+          <div class="col-12">
+            <div class="card">
+              <div class="card-header bg-white border-bottom-0">
+                <h5 class="card-title mb-0">Quick Actions</h5>
+              </div>
+              <div class="card-body">
+                <div class="row g-3">
+                  <div class="col-md-4">
+                    <a href="vendor-products.html" class="btn btn-primary w-100 py-3">
+                      <i class="bi bi-plus-circle display-6 mb-2"></i><br>
+                      Add New Product
+                    </a>
+                  </div>
+                  <div class="col-md-4">
+                    <a href="vendor-products.html" class="btn btn-outline-primary w-100 py-3">
+                      <i class="bi bi-pencil display-6 mb-2"></i><br>
+                      Manage Products
+                    </a>
+                  </div>
+                  <div class="col-md-4">
+                    <a href="vendor-rfqs.html" class="btn btn-outline-success w-100 py-3">
+                      <i class="bi bi-envelope display-6 mb-2"></i><br>
+                      View RFQs
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Activity -->
         <div class="row">
           <div class="col-lg-8">
-            <div class="card shadow-sm mb-4">
+            <div class="card">
               <div class="card-header bg-white border-bottom-0">
                 <h5 class="card-title mb-0">Recent RFQs</h5>
               </div>
               <div class="card-body">
                 <div class="table-responsive">
-                  <table class="table table-hover align-middle">
-                    <thead class="table-light">
+                  <table class="table table-hover">
+                    <thead>
                       <tr>
                         <th>Company</th>
                         <th>Product</th>
-                        <th>Qty</th>
                         <th>Date</th>
                         <th>Status</th>
-                        <th class="text-end">Action</th>
                       </tr>
                     </thead>
-                    <tbody id="recent-rfqs-table">
-                      <!-- Recent RFQs will be loaded here -->
+                    <tbody id="recent-rfqs">
+                      <!-- Will be populated by JavaScript -->
                     </tbody>
                   </table>
                 </div>
-                <div id="no-rfqs-message" class="text-center py-4 d-none">
-                  <i class="bi bi-envelope display-4 text-muted mb-3"></i>
-                  <h6>No RFQs yet</h6>
-                  <p class="text-muted small">When customers request your products, they'll appear here.</p>
-                </div>
                 <div class="text-center">
-                  <a href="vendor-rfqs.html" class="btn btn-outline-primary btn-sm">
-                    View All RFQs <i class="bi bi-arrow-right"></i>
-                  </a>
+                  <a href="vendor-rfqs.html" class="btn btn-sm btn-outline-primary">View All RFQs</a>
                 </div>
               </div>
             </div>
           </div>
-
-          <!-- Quick Actions -->
           <div class="col-lg-4">
-            <div class="card shadow-sm mb-4">
+            <div class="card">
               <div class="card-header bg-white border-bottom-0">
-                <h5 class="card-title mb-0">Quick Actions</h5>
-              </div>
-              <div class="card-body">
-                <div class="d-grid gap-2">
-                  <a href="vendor-products.html" class="btn btn-primary">
-                    <i class="bi bi-plus-circle"></i> Add New Product
-                  </a>
-                  <a href="vendor-products.html" class="btn btn-outline-primary">
-                    <i class="bi bi-pencil"></i> Manage Products
-                  </a>
-                  <a href="vendor-rfqs.html" class="btn btn-outline-success">
-                    <i class="bi bi-envelope-check"></i> View All RFQs
-                  </a>
-                  <button class="btn btn-outline-info" id="refresh-dashboard-btn">
-                    <i class="bi bi-arrow-clockwise"></i> Refresh Dashboard
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Account Info -->
-            <div class="card shadow-sm">
-              <div class="card-header bg-white border-bottom-0">
-                <h5 class="card-title mb-0">Account Information</h5>
+                <h5 class="card-title mb-0">Account Info</h5>
               </div>
               <div class="card-body">
                 <div class="mb-3">
@@ -202,20 +182,18 @@
                   <p class="mb-0" id="account-email">Loading...</p>
                 </div>
                 <div class="mb-3">
-                  <label class="form-label small text-muted">Account Type</label>
-                  <p class="mb-0">
-                    <span class="badge bg-success" id="account-type">Vendor</span>
-                  </p>
+                  <label class="form-label small text-muted">Status</label>
+                  <p class="mb-0"><span class="badge bg-success">Active Vendor</span></p>
                 </div>
                 <div class="mb-3">
-                  <label class="form-label small text-muted">Member Since</label>
-                  <p class="mb-0" id="member-since">Loading...</p>
+                  <label class="form-label small text-muted">Joined</label>
+                  <p class="mb-0" id="join-date">Loading...</p>
                 </div>
                 <hr>
                 <div class="d-grid">
-                  <button class="btn btn-outline-secondary" id="account-settings-btn">
-                    <i class="bi bi-gear"></i> Account Settings
-                  </button>
+                  <a href="index.html" class="btn btn-outline-secondary">
+                    <i class="bi bi-eye"></i> View My Products in Store
+                  </a>
                 </div>
               </div>
             </div>
@@ -228,35 +206,30 @@
       <div class="container">
         <div class="row gy-3">
           <div class="col-md-6">
-            <h6 class="fw-semibold mb-2">Nahj Al-Rasanah Vendor Platform</h6>
-            <p class="small mb-1">
-              Oil &amp; Gas Supplies – Vendor Dashboard
-            </p>
-            <p class="small mb-0">
-              Phone: +964 784 349 9555 · Email: <a href="mailto:vendors@nahjalrasanah.com" class="link-light text-decoration-none">vendors@nahjalrasanah.com</a>
-            </p>
-          </div>
-          <div class="col-md-3">
-            <h6 class="fw-semibold mb-2">Quick Links</h6>
-            <ul class="list-unstyled small mb-0">
-              <li><a href="vendor-dashboard.html" class="link-light text-decoration-none">Dashboard</a></li>
-              <li><a href="vendor-products.html" class="link-light text-decoration-none">My Products</a></li>
-              <li><a href="vendor-rfqs.html" class="link-light text-decoration-none">RFQs</a></li>
-            </ul>
+            <h6 class="fw-semibold mb-2">Nahj Al-Rasanah Vendor Portal</h6>
+            <p class="small mb-0">Manage your products and customer requests</p>
           </div>
           <div class="col-md-3">
             <h6 class="fw-semibold mb-2">Support</h6>
             <p class="small mb-0">
-              Need help? Contact our vendor support team.
+              <a href="mailto:vendors@nahjalrasanah.com" class="link-light text-decoration-none">vendors@nahjalrasanah.com</a>
+            </p>
+          </div>
+          <div class="col-md-3">
+            <h6 class="fw-semibold mb-2">Store</h6>
+            <p class="small mb-0">
+              <a href="index.html" class="link-light text-decoration-none">View Public Store</a>
             </p>
           </div>
         </div>
         <hr class="border-secondary my-3">
-        <p class="small text-center mb-0">&copy; <span id="year"></span> Nahj Al-Rasanah LLC. All rights reserved.</p>
+        <p class="small text-center mb-0">&copy; <span id="year"></span> Nahj Al-Rasanah LLC</p>
       </div>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script type="module" src="assets/js/vendor-dashboard.js"></script>
+    <script type="module" src="assets/js/auth-nav.js"></script>
+    <script type="module" src="assets/js/auth-nav.js"></script>
   </body>
 </html>
