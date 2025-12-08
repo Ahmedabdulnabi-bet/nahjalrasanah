@@ -1,5 +1,10 @@
 // assets/js/app.js
 
+console.log('App.js is running!'); // أضف هذا السطر
+
+import { firebaseConfig } from './firebase-config.js';
+//
+
 import { firebaseConfig } from './firebase-config.js';
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js';
