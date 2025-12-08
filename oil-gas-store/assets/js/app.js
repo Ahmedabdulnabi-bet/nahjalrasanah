@@ -1,34 +1,45 @@
 // assets/js/app.js
 
-console.log('App.js is running!'); // أضف هذا السطر
-
-import { firebaseConfig } from './firebase-config.js';
-//
-
 import { firebaseConfig } from './firebase-config.js';
 
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js';
+import { 
+  initializeApp 
+} from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js';
+
+import { // (جديد) إضافة خدمات المصادقة
+  getAuth,
+  onAuthStateChanged,
+  signOut
+} from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js';
+
 import {
   getFirestore,
   collection,
-  getDocs, // ضرورية لجلب المنتجات
+  getDocs,
   addDoc,
-  serverTimestamp
+  serverTimestamp,
+  getDoc, // لإصلاح fetchProductDetails
+  doc // لإصلاح fetchProductDetails
 } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js';
 
 // initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app); // (جديد) تهيئة خدمة المصادقة
 
 // Get references to collections
-const productsCol = collection(db, 'products'); // (جديد) مرجع مجموعة المنتجات
+const productsCol = collection(db, 'products'); 
 const rfqsCol = collection(db, 'rfqs');
 
 // DOM elements
-const productListEl = document.getElementById('product-list'); // (جديد) عنصر قائمة المنتجات
+const productListEl = document.getElementById('product-list'); 
 const rfqListEl = document.getElementById('rfq-list');
 const rfqForm = document.getElementById('rfq-form');
 const rfqCountEl = document.getElementById('rfq-count');
+
+// DOM elements for Authentication UI (جديد)
+const authLink = document.getElementById('auth-link');
+let currentUser = null;
 
 // RFQ localStorage key
 const STORAGE_KEY_RFQ = 'nahj_rfq_cart_v1';
@@ -36,6 +47,7 @@ let products = []; // لتخزين المنتجات محليًا للرجوع إ
 
 // ---------- local RFQ helpers ----------
 function getRfqCart() {
+  // ... (نفس الدالة)
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY_RFQ);
     return raw ? JSON.parse(raw) : [];
@@ -45,12 +57,14 @@ function getRfqCart() {
 }
 
 function saveRfqCart(cart) {
+  // ... (نفس الدالة)
   try {
     window.localStorage.setItem(STORAGE_KEY_RFQ, JSON.stringify(cart));
   } catch {}
 }
 
 function addToRfq(itemId, qty = 1) {
+  // ... (نفس الدالة)
   const cart = getRfqCart();
   const idx = cart.findIndex((c) => c.id === itemId);
   if (idx >= 0) cart[idx].qty += qty;
@@ -59,6 +73,7 @@ function addToRfq(itemId, qty = 1) {
 }
 
 function updateRfqItem(id, qty) {
+  // ... (نفس الدالة)
   const cart = getRfqCart();
   const idx = cart.findIndex((c) => c.id === id);
   if (idx >= 0) {
@@ -68,19 +83,55 @@ function updateRfqItem(id, qty) {
 }
 
 function removeRfqItem(id) {
+  // ... (نفس الدالة)
   const cart = getRfqCart().filter((c) => c.id !== id);
   saveRfqCart(cart);
 }
 
 function clearRfqCart() {
+  // ... (نفس الدالة)
   window.localStorage.removeItem(STORAGE_KEY_RFQ);
 }
+
+// ------------------------------------------------------------------
+// (جديد) Authentication UI Logic
+// ------------------------------------------------------------------
+
+function updateAuthUI() {
+    if (authLink) {
+        if (currentUser) {
+            // المستخدم مسجل الدخول
+            authLink.href = '#'; 
+            authLink.textContent = 'Logout';
+            authLink.title = `Logged in as: ${currentUser.email}`;
+            authLink.addEventListener('click', handleLogout, { once: true });
+        } else {
+            // المستخدم غير مسجل الدخول
+            authLink.href = 'admin.html';
+            authLink.textContent = 'Admin Login';
+            authLink.title = 'Go to Admin Panel';
+            authLink.removeEventListener('click', handleLogout);
+        }
+    }
+}
+
+async function handleLogout(e) {
+    e.preventDefault();
+    try {
+        await signOut(auth);
+    } catch (err) {
+        console.error('Logout error:', err);
+        alert('Failed to log out.');
+    }
+}
+
 
 // ------------------------------------------------------------------
 // Catalog Rendering (index.html)
 // ------------------------------------------------------------------
 
 function renderProducts(productsToRender) {
+    // ... (نفس الدالة التي أرسلتها في الرد السابق)
     if (!productListEl) return;
     productListEl.innerHTML = ''; 
 
@@ -93,7 +144,7 @@ function renderProducts(productsToRender) {
         const cardCol = document.createElement('div');
         cardCol.className = 'col';
 
-        // استخدام هيكل بطاقة Bootstrap قياسي
+        // ... (تجنب تحميل الفيديو المكسور)
         cardCol.innerHTML = `
             <div class="card product-card h-100 shadow-sm border-0">
                 <img src="${product.image || 'assets/images/product-placeholder.png'}" class="card-img-top" alt="${product.name}" loading="lazy">
@@ -114,7 +165,6 @@ function renderProducts(productsToRender) {
         productListEl.appendChild(cardCol);
     });
 
-    // إضافة مستمعي الأحداث لأزرار "Add to RFQ"
     document.querySelectorAll('.add-to-rfq-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const id = e.currentTarget.getAttribute('data-id');
@@ -135,17 +185,108 @@ async function initHome() {
         const snapshot = await getDocs(productsCol);
         products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         
-        // تصفية المنتجات غير النشطة (افتراضًا حقل 'isActive' موجود)
+        console.log('Fetched products:', products); // التشخيص الذي أضفناه سابقاً
+
         const activeProducts = products.filter(p => p.isActive !== false);
 
         renderProducts(activeProducts);
 
     } catch (err) {
         console.error('Error fetching products from Firestore:', err);
-        productListEl.innerHTML = '<div class="col-12"><p class="alert alert-danger">Error loading product catalog. Please check your Firebase connection and Security Rules.</p></div>';
+        productListEl.innerHTML = '<div class="col-12"><p class="alert alert-danger">Error loading product catalog. Please check your Firebase Security Rules (products: allow read: if true;).</p></div>';
     }
-    // يجب تشغيل عرض سلة RFQ أيضاً بعد تحميل المنتجات
     renderRfq(); 
+}
+
+// ------------------------------------------------------------------
+// Product Details Logic (product.html) - (جديد)
+// ------------------------------------------------------------------
+
+async function fetchProductDetails(productId) {
+    try {
+        const docRef = doc(db, 'products', productId);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+            return { id: docSnap.id, ...docSnap.data() };
+        }
+        return null;
+    } catch (error) {
+        console.error("Error fetching product details:", error);
+        return null;
+    }
+}
+
+async function initProductPage() {
+    const params = new URLSearchParams(window.location.search);
+    const productId = params.get('id');
+
+    if (!productId) {
+        document.getElementById('product-details').innerHTML = '<p class="alert alert-warning">Product ID is missing.</p>';
+        return;
+    }
+
+    const product = await fetchProductDetails(productId);
+    const detailsContainer = document.getElementById('product-details');
+
+    if (product) {
+        document.title = `${product.name} | Nahj Al-Rasanah`;
+
+        // عرض تفاصيل المنتج 
+        detailsContainer.innerHTML = `
+            <div class="row g-5">
+                <div class="col-md-5">
+                    <img src="${product.image || 'assets/images/product-placeholder.png'}" class="img-fluid rounded shadow" alt="${product.name}">
+                </div>
+                <div class="col-md-7">
+                    <h1 class="fw-bold mb-3">${product.name}</h1>
+                    <p class="lead text-muted mb-4">${product.shortDescription || ''}</p>
+                    
+                    <div class="d-flex gap-2 mb-4">
+                        <span class="badge bg-primary">Part No: ${product.partNumber || 'N/A'}</span>
+                        <span class="badge bg-secondary">${product.category || 'N/A'}</span>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-start mb-5">
+                        <button class="btn btn-lg btn-success add-to-rfq-btn" data-id="${product.id}">
+                            <i class="bi bi-cart-plus"></i> Add to RFQ
+                        </button>
+                        ${product.datasheet ? `<a href="${product.datasheet}" target="_blank" class="btn btn-lg btn-outline-info"><i class="bi bi-file-earmark-pdf"></i> Datasheet</a>` : ''}
+                    </div>
+
+                    <ul class="nav nav-tabs" id="productTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="desc-tab" data-bs-toggle="tab" data-bs-target="#description" type="button" role="tab" aria-controls="description" aria-selected="true">Description</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="specs-tab" data-bs-toggle="tab" data-bs-target="#specs" type="button" role="tab" aria-controls="specs" aria-selected="false">Specifications</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content border border-top-0 p-3 rounded-bottom" id="productTabsContent">
+                        <div class="tab-pane fade show active" id="description" role="tabpanel" aria-labelledby="desc-tab">
+                            <p>${product.longDescription || 'No detailed description available.'}</p>
+                        </div>
+                        <div class="tab-pane fade" id="specs" role="tabpanel" aria-labelledby="specs-tab">
+                            <ul class="list-unstyled">
+                                ${product.specs ? Object.entries(product.specs).map(([key, value]) => `<li><strong>${key}:</strong> ${value}</li>`).join('') : '<li>No specifications provided.</li>'}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // إضافة مستمع حدث زر "Add to RFQ"
+        document.querySelector('.add-to-rfq-btn').addEventListener('click', (e) => {
+            addToRfq(product.id, 1);
+            renderRfq(); 
+            alert('Product added to RFQ basket!');
+        });
+
+    } else {
+        detailsContainer.innerHTML = '<p class="alert alert-danger">Product not found or an error occurred while loading.</p>';
+    }
+    renderRfq(); // لتحديث أيقونة السلة
 }
 
 
@@ -153,7 +294,8 @@ async function initHome() {
 // RFQ Basket Logic (rfq.html)
 // ------------------------------------------------------------------
 
-// (محتوى renderRfq و initRfq كما في نسختك الأصلية، تم وضعه هنا لضمان الاكتمال)
+// ... (الدوال renderRfq و initRfq كما كانت سابقاً)
+// يجب أن تكون موجودة هنا...
 
 function renderRfq() {
   const cart = getRfqCart();
@@ -168,11 +310,9 @@ function renderRfq() {
     return;
   }
   
-  // إظهار النموذج إذا كان هناك عناصر في السلة
   rfqForm && rfqForm.classList.remove('d-none');
 
   cart.forEach((item) => {
-    // العثور على المنتج من قائمة المنتجات التي تم تحميلها مسبقاً
     const product = products.find(p => p.id === item.id) || { name: 'Unknown Product', partNumber: 'N/A' };
 
     const tr = document.createElement('tr');
@@ -190,7 +330,6 @@ function renderRfq() {
     rfqListEl.appendChild(tr);
   });
 
-  // إضافة مستمعي الأحداث
   document.querySelectorAll('.rfq-qty-input').forEach(input => {
     input.addEventListener('change', (e) => {
       const id = e.target.getAttribute('data-id');
@@ -209,7 +348,7 @@ function renderRfq() {
 }
 
 async function initRfq() {
-    // (جديد) تحميل المنتجات أولاً لربطها بسلة RFQ
+    // تحميل المنتجات أولاً لربطها بسلة RFQ
     try {
         const snapshot = await getDocs(productsCol);
         products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -299,6 +438,12 @@ async function initRfq() {
 function initCommon() {
   const yearSpan = document.getElementById('year');
   if (yearSpan) yearSpan.textContent = new Date().getFullYear();
+  
+  // (جديد) مراقبة حالة المصادقة لتحديث زر الإدارة
+  onAuthStateChanged(auth, (user) => {
+      currentUser = user;
+      updateAuthUI();
+  });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -306,9 +451,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const page = document.body.getAttribute('data-page');
   
   if (page === 'home') {
-      initHome(); // تشغيل منطق الصفحة الرئيسية
+      initHome(); // تشغيل منطق الصفحة الرئيسية (الكتالوج)
   } else if (page === 'rfq') {
       initRfq(); // تشغيل منطق صفحة سلة RFQ
+  } else if (page === 'product') {
+      initProductPage(); // تشغيل منطق صفحة تفاصيل المنتج
   }
-  // صفحة المنتج product.html ومنطقها يظل كما هو إن وجد
 });
