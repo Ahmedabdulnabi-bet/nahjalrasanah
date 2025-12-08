@@ -431,6 +431,7 @@ async function loadProductDetails() {
 }
 
 // ---------- RFQ Page Functions ----------
+// تحديث دالة renderRfqTable
 function renderRfqTable() {
   const tableBody = document.getElementById('rfq-table-body');
   const emptyMsg = document.getElementById('rfq-empty');
@@ -450,6 +451,8 @@ function renderRfqTable() {
   
   if (emptyMsg) emptyMsg.classList.add('d-none');
   if (rfqForm) rfqForm.classList.remove('d-none');
+ 
+}
   
   tableBody.innerHTML = cart.map(item => {
     const product = products.find(p => p.id === item.id) || {
