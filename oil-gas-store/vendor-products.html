@@ -10,7 +10,6 @@
     <link rel="stylesheet" href="assets/css/styles.css">
   </head>
   <body data-page="vendor-products">
-    <!-- نفس Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm sticky-top">
       <div class="container">
         <a class="navbar-brand d-flex align-items-center gap-2" href="index.html">
@@ -27,13 +26,13 @@
     <main class="py-4">
       <div class="container">
         <div class="d-flex justify-content-between align-items-center mb-4">
-          <h1 class="h3 mb-0">My Products</h1>
+          <h1 class="h3 fw-bold mb-0">My Products</h1>
           <button class="btn btn-primary" id="add-product-btn">
             <i class="bi bi-plus-circle"></i> Add Product
           </button>
         </div>
 
-        <div class="card">
+        <div class="card shadow-sm">
           <div class="card-body">
             <div class="table-responsive">
               <table class="table table-hover">
@@ -48,14 +47,14 @@
                   </tr>
                 </thead>
                 <tbody id="products-table">
-                  <!-- Will be populated -->
+                  <!-- Products will be loaded here -->
                 </tbody>
               </table>
             </div>
             <div id="no-products" class="text-center py-5 d-none">
               <i class="bi bi-box display-4 text-muted mb-3"></i>
               <h5>No Products Yet</h5>
-              <p class="text-muted">Add your first product to start selling</p>
+              <p class="text-muted">Start by adding your first product</p>
               <button class="btn btn-primary" id="add-first-product">
                 <i class="bi bi-plus-circle"></i> Add First Product
               </button>

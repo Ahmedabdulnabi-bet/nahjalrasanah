@@ -25,3 +25,29 @@ onAuthStateChanged(auth, async (user) => {
     adminSection.classList.add('d-none');
   }
 });
+// في دالة onAuthStateChanged في admin.js
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    // تحقق إذا كان المستخدم مسؤولاً أم بائعاً
+    const userDoc = await getDoc(doc(db, 'users', user.uid));
+    let isAdmin = false;
+    
+    if (userDoc.exists()) {
+      const userData = userDoc.data();
+      isAdmin = userData.role === 'admin';
+    }
+    
+    if (isAdmin) {
+      // اظهر لوحة التحكم للمسؤول
+      loginSection.classList.add('d-none');
+      adminSection.classList.remove('d-none');
+    } else {
+      // توجيه البائعين إلى لوحة التحكم الخاصة بهم
+      window.location.href = 'vendor-dashboard.html';
+    }
+  } else {
+    // المستخدم غير مسجل
+    loginSection.classList.remove('d-none');
+    adminSection.classList.add('d-none');
+  }
+});

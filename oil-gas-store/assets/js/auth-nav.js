@@ -53,6 +53,7 @@ function updateNavigation(user, userRole) {
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
             <li><a class="dropdown-item" href="vendor-dashboard.html"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
+            <li><a class="dropdown-item" href="vendor-products.html"><i class="bi bi-box"></i> My Products</a></li>
             <li><a class="dropdown-item" href="vendor-rfqs.html"><i class="bi bi-envelope"></i> My RFQs</a></li>
             <li><hr class="dropdown-divider"></li>
             <li><a class="dropdown-item" href="#" id="logout-btn"><i class="bi bi-box-arrow-right"></i> Logout</a></li>
