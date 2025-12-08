@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en" dir="ltr">
-  <head>
+<head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Nahj Al-Rasanah | My Products</title>
@@ -8,137 +8,186 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="assets/css/styles.css">
-  </head>
-  <body data-page="vendor-products">
+</head>
+<body data-page="vendor-products">
+    <!-- نفس navbar من index.html -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm sticky-top">
-      <div class="container">
-        <a class="navbar-brand d-flex align-items-center gap-2" href="index.html">
-          <img src="assets/images/logo-store.png" alt="Nahj Oil &amp; Gas Store" width="32" height="32" class="rounded-circle border border-secondary">
-          <span class="fw-semibold">
-            Nahj Al-Rasanah<br>
-            <small class="text-muted" style="font-size:0.7rem;">My Products</small>
-          </span>
-        </a>
-        <div id="auth-nav-container"></div>
-      </div>
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center gap-2" href="index.html">
+                <img src="assets/images/logo-store.png" alt="Nahj Oil &amp; Gas Store" width="32" height="32" class="rounded-circle border border-secondary">
+                <span class="fw-semibold">
+                    Nahj Al-Rasanah<br>
+                    <small class="text-muted" style="font-size:0.7rem;">My Products</small>
+                </span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="mainNavbar">
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                    <li class="nav-item"><a class="nav-link" href="index.html">Store</a></li>
+                    <li class="nav-item"><a class="nav-link" href="vendor-dashboard.html">Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="vendor-products.html">My Products</a></li>
+                    <li class="nav-item"><a class="nav-link" href="vendor-rfqs.html">My RFQs</a></li>
+                </ul>
+                <button id="logout-btn" class="btn btn-outline-light btn-sm ms-lg-3">
+                    <i class="bi bi-box-arrow-right"></i> Logout
+                </button>
+            </div>
+        </div>
     </nav>
 
     <main class="py-4">
-      <div class="container">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-          <h1 class="h3 fw-bold mb-0">My Products</h1>
-          <button class="btn btn-primary" id="add-product-btn">
-            <i class="bi bi-plus-circle"></i> Add Product
-          </button>
-        </div>
-
-        <div class="card shadow-sm">
-          <div class="card-body">
-            <div class="table-responsive">
-              <table class="table table-hover">
-                <thead>
-                  <tr>
-                    <th>Image</th>
-                    <th>Name</th>
-                    <th>Part No</th>
-                    <th>Category</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="products-table">
-                  <!-- Products will be loaded here -->
-                </tbody>
-              </table>
+        <div class="container">
+            <h1 class="h3 fw-bold mb-4">Manage Your Products</h1>
+            
+            <!-- Form to Add/Edit Product -->
+            <div class="row">
+                <div class="col-lg-5 mb-4">
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0" id="form-title">Add New Product</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="product-form" enctype="multipart/form-data">
+                                <input type="hidden" id="product-id">
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Product Name *</label>
+                                    <input type="text" class="form-control" id="product-name" required>
+                                </div>
+                                
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Part Number</label>
+                                        <input type="text" class="form-control" id="product-part">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Category *</label>
+                                        <select class="form-select" id="product-category" required>
+                                            <option value="">Select Category</option>
+                                            <option value="Valves & Actuators">Valves & Actuators</option>
+                                            <option value="Instrumentation & Control">Instrumentation & Control</option>
+                                            <option value="Safety & Firefighting">Safety & Firefighting</option>
+                                            <option value="Process Equipment">Process Equipment</option>
+                                            <option value="Piping & Fittings">Piping & Fittings</option>
+                                            <option value="Electrical & Cabling">Electrical & Cabling</option>
+                                            <option value="OEM Spare Parts">OEM Spare Parts</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Short Description</label>
+                                    <textarea class="form-control" id="product-short" rows="2"></textarea>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Full Description</label>
+                                    <textarea class="form-control" id="product-long" rows="4"></textarea>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Tags (comma separated)</label>
+                                    <input type="text" class="form-control" id="product-tags" placeholder="API 600, Gate Valve, Class 600">
+                                </div>
+                                
+                                <!-- File Uploads -->
+                                <div class="mb-3">
+                                    <label class="form-label">Product Image *</label>
+                                    <input type="file" class="form-control" id="product-image" accept="image/*" required>
+                                    <small class="text-muted">JPG, PNG (Max 5MB)</small>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Product Video (Optional)</label>
+                                    <input type="file" class="form-control" id="product-video" accept="video/mp4">
+                                    <small class="text-muted">MP4 (Max 20MB)</small>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Datasheet PDF (Optional)</label>
+                                    <input type="file" class="form-control" id="product-datasheet" accept="application/pdf">
+                                    <small class="text-muted">PDF (Max 10MB)</small>
+                                </div>
+                                
+                                <div class="form-check mb-4">
+                                    <input class="form-check-input" type="checkbox" id="product-active" checked>
+                                    <label class="form-check-label">Active (visible in store)</label>
+                                </div>
+                                
+                                <div class="d-grid gap-2">
+                                    <button type="submit" class="btn btn-primary" id="save-btn">
+                                        <i class="bi bi-save"></i> Save Product
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" id="reset-btn">
+                                        <i class="bi bi-x-circle"></i> Reset
+                                    </button>
+                                </div>
+                                
+                                <div id="form-message" class="mt-3"></div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Products List -->
+                <div class="col-lg-7">
+                    <div class="card shadow-sm">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">My Products</h5>
+                            <button class="btn btn-sm btn-outline-primary" id="refresh-btn">
+                                <i class="bi bi-arrow-clockwise"></i>
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Image</th>
+                                            <th>Name</th>
+                                            <th>Part #</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="products-table">
+                                        <!-- Products will load here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div id="no-products" class="text-center py-5 d-none">
+                                <i class="bi bi-box display-4 text-muted"></i>
+                                <p class="mt-3">No products yet</p>
+                                <p class="text-muted small">Add your first product using the form</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div id="no-products" class="text-center py-5 d-none">
-              <i class="bi bi-box display-4 text-muted mb-3"></i>
-              <h5>No Products Yet</h5>
-              <p class="text-muted">Start by adding your first product</p>
-              <button class="btn btn-primary" id="add-first-product">
-                <i class="bi bi-plus-circle"></i> Add First Product
-              </button>
-            </div>
-          </div>
         </div>
-      </div>
     </main>
 
-    <!-- Product Modal -->
-    <div class="modal fade" id="productModal">
-      <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Add New Product</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body">
-            <form id="product-form">
-              <input type="hidden" id="product-id">
-              <div class="row">
-                <div class="col-md-6 mb-3">
-                  <label class="form-label">Product Name *</label>
-                  <input type="text" class="form-control" id="product-name" required>
-                </div>
-                <div class="col-md-6 mb-3">
-                  <label class="form-label">Part Number</label>
-                  <input type="text" class="form-control" id="part-number">
-                </div>
-              </div>
-              <div class="row">
-                <div class="col-md-6 mb-3">
-                  <label class="form-label">Category</label>
-                  <input type="text" class="form-control" id="category">
-                </div>
-                <div class="col-md-6 mb-3">
-                  <label class="form-label">Price (optional)</label>
-                  <input type="number" class="form-control" id="price" step="0.01">
-                </div>
-              </div>
-              <div class="mb-3">
-                <label class="form-label">Description</label>
-                <textarea class="form-control" id="description" rows="3"></textarea>
-              </div>
-              <div class="mb-3">
-                <label class="form-label">Image URL</label>
-                <input type="text" class="form-control" id="image-url" placeholder="https://example.com/image.jpg">
-              </div>
-              <div class="form-check mb-3">
-                <input class="form-check-input" type="checkbox" id="is-active" checked>
-                <label class="form-check-label" for="is-active">
-                  Active (visible in store)
-                </label>
-              </div>
-            </form>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button type="button" class="btn btn-primary" id="save-product">Save Product</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <footer class="bg-dark text-light mt-5 pt-4 pb-3">
-      <div class="container">
-        <div class="row gy-3">
-          <div class="col-md-6">
-            <h6 class="fw-semibold mb-2">Manage Your Products</h6>
-            <p class="small mb-0">Add, edit, or remove your products from the store</p>
-          </div>
-          <div class="col-md-6 text-end">
-            <a href="vendor-dashboard.html" class="btn btn-outline-light btn-sm">
-              <i class="bi bi-arrow-left"></i> Back to Dashboard
-            </a>
-          </div>
+        <div class="container">
+            <div class="row gy-3">
+                <div class="col-md-6">
+                    <h6 class="fw-semibold mb-2">Nahj Al-Rasanah Vendor Portal</h6>
+                    <p class="small mb-0">Manage your products and customer requests</p>
+                </div>
+                <div class="col-md-6 text-end">
+                    <a href="vendor-dashboard.html" class="btn btn-outline-light btn-sm">
+                        <i class="bi bi-arrow-left"></i> Back to Dashboard
+                    </a>
+                </div>
+            </div>
+            <hr class="border-secondary my-3">
+            <p class="small text-center mb-0">&copy; <span id="year"></span> Nahj Al-Rasanah LLC</p>
         </div>
-        <hr class="border-secondary my-3">
-        <p class="small text-center mb-0">&copy; <span id="year"></span> Nahj Al-Rasanah LLC</p>
-      </div>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script type="module" src="assets/js/vendor-products.js"></script>
-    <script type="module" src="assets/js/auth-nav.js"></script>
-  </body>
+</body>
 </html>
