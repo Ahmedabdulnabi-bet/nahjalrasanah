@@ -1,119 +1,159 @@
-// assets/js/vendor-rfqs.js
+// assets/js/vendor-rfqs.js - نسخة مبسطة
 
-import { firebaseConfig } from './firebase-config.js';
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js';
-import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js';
-import { 
-    getFirestore, collection, getDocs, query, where, 
-    orderBy, deleteDoc, doc, updateDoc, serverTimestamp 
-} from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js';
+// Firebase configuration
+const firebaseConfig = {
+    apiKey: "AIzaSyAtcnouNdsILUvA9EMvrHMhoaWXkMqTMx0",
+    authDomain: "nahj-oilgas-store.firebaseapp.com",
+    projectId: "nahj-oilgas-store",
+    storageBucket: "nahj-oilgas-store.appspot.com",
+    messagingSenderId: "967640800678",
+    appId: "1:967640800678:web:4b018066c733c4e4500367",
+    measurementId: "G-9XZPG5TJ6W"
+};
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-// DOM Elements
-const rfqsTable = document.getElementById('rfqs-table');
-const noRfqsDiv = document.getElementById('no-rfqs');
-const refreshBtn = document.getElementById('refresh-btn');
-const logoutBtn = document.getElementById('logout-btn');
-const deleteRfqBtn = document.getElementById('delete-rfq-btn');
-const rfqModal = document.getElementById('rfqModal');
-
-// State
+let auth, db;
 let currentUser = null;
 let vendorProducts = [];
 let vendorRfqs = [];
-let selectedRfqId = null;
+
+try {
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
+    
+    auth = firebase.auth();
+    db = firebase.firestore();
+    
+    console.log('RFQs Firebase initialized');
+} catch (error) {
+    console.error('Firebase init error:', error);
+}
 
 // Initialize
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('RFQs page loaded');
+    
     // Set copyright year
-    document.getElementById('year').textContent = new Date().getFullYear();
+    const yearSpan = document.getElementById('year');
+    if (yearSpan) {
+        yearSpan.textContent = new Date().getFullYear();
+    }
     
     // Check authentication
-    onAuthStateChanged(auth, async (user) => {
+    auth.onAuthStateChanged(function(user) {
         if (user) {
+            console.log('RFQs user:', user.email);
             currentUser = user;
-            await loadVendorData();
+            loadVendorData();
+            setupEventListeners();
         } else {
+            console.log('No user, redirecting');
             window.location.href = 'admin.html';
         }
     });
-    
-    // Setup event listeners
-    setupEventListeners();
 });
 
 function setupEventListeners() {
     // Refresh button
-    refreshBtn.addEventListener('click', loadVendorData);
+    const refreshBtn = document.getElementById('refresh-btn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', loadVendorData);
+    }
     
     // Logout button
-    logoutBtn.addEventListener('click', () => {
-        signOut(auth).then(() => {
-            window.location.href = 'index.html';
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', function() {
+            auth.signOut().then(() => {
+                window.location.href = 'index.html';
+            });
         });
-    });
+    }
     
-    // Delete RFQ button in modal
-    deleteRfqBtn.addEventListener('click', deleteSelectedRfq);
+    // Delete RFQ button
+    const deleteBtn = document.getElementById('delete-rfq-btn');
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', deleteSelectedRfq);
+    }
 }
 
 async function loadVendorData() {
     if (!currentUser) return;
     
+    console.log('Loading vendor RFQs data...');
+    
     try {
-        // Load vendor's products first
-        const productsQuery = query(
-            collection(db, 'products'),
-            where('vendorId', '==', currentUser.uid)
-        );
-        const productsSnapshot = await getDocs(productsQuery);
-        vendorProducts = productsSnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        }));
+        showLoading(true);
+        
+        // Load vendor's products
+        const productsSnapshot = await db.collection('products')
+            .where('vendorId', '==', currentUser.uid)
+            .get();
+        
+        vendorProducts = [];
+        productsSnapshot.forEach(doc => {
+            vendorProducts.push({
+                id: doc.id,
+                ...doc.data()
+            });
+        });
+        
+        console.log('Vendor products:', vendorProducts.length);
         
         // Load all RFQs
-        const rfqsQuery = query(
-            collection(db, 'rfqs'),
-            orderBy('createdAt', 'desc')
-        );
-        const rfqsSnapshot = await getDocs(rfqsQuery);
+        const rfqsSnapshot = await db.collection('rfqs')
+            .orderBy('createdAt', 'desc')
+            .limit(100)
+            .get();
+        
+        const allRfqs = [];
+        rfqsSnapshot.forEach(doc => {
+            allRfqs.push({
+                id: doc.id,
+                ...doc.data()
+            });
+        });
         
         // Filter RFQs that contain vendor's products
-        vendorRfqs = rfqsSnapshot.docs
-            .map(doc => ({ id: doc.id, ...doc.data() }))
-            .filter(rfq => {
-                if (!rfq.items || !Array.isArray(rfq.items)) return false;
-                
-                // Check if any item belongs to this vendor
-                return rfq.items.some(item => 
-                    vendorProducts.some(product => product.id === item.id)
-                );
-            });
+        vendorRfqs = allRfqs.filter(rfq => {
+            if (!rfq.items || !Array.isArray(rfq.items)) return false;
+            
+            // Check if any item belongs to this vendor
+            return rfq.items.some(item => 
+                vendorProducts.some(product => product.id === item.id)
+            );
+        });
+        
+        console.log('Vendor RFQs:', vendorRfqs.length);
         
         renderRfqsTable();
         updateStats();
         
     } catch (error) {
         console.error('Error loading vendor data:', error);
-        alert('Error loading data');
+        showMessage('Error loading data: ' + error.message, 'danger');
+    } finally {
+        showLoading(false);
     }
 }
 
 function renderRfqsTable() {
+    const rfqsTable = document.getElementById('rfqs-table');
+    const noRfqsDiv = document.getElementById('no-rfqs');
+    
+    if (!rfqsTable) return;
+    
     if (vendorRfqs.length === 0) {
         rfqsTable.innerHTML = '';
-        noRfqsDiv.classList.remove('d-none');
+        if (noRfqsDiv) noRfqsDiv.classList.remove('d-none');
         return;
     }
     
-    noRfqsDiv.classList.add('d-none');
+    if (noRfqsDiv) noRfqsDiv.classList.add('d-none');
     
-    rfqsTable.innerHTML = vendorRfqs.map(rfq => {
+    let html = '';
+    vendorRfqs.forEach(rfq => {
         // Get vendor's products from this RFQ
         const vendorItems = rfq.items.filter(item => 
             vendorProducts.some(product => product.id === item.id)
@@ -123,7 +163,7 @@ function renderRfqsTable() {
         const date = rfq.createdAt?.toDate ? 
             rfq.createdAt.toDate().toLocaleDateString() : 'N/A';
         
-        return `
+        html += `
             <tr>
                 <td>
                     <strong>${rfq.company || 'N/A'}</strong><br>
@@ -150,12 +190,14 @@ function renderRfqsTable() {
                 </td>
             </tr>
         `;
-    }).join('');
+    });
+    
+    rfqsTable.innerHTML = html;
     
     // Add event listeners to view buttons
     document.querySelectorAll('.view-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const rfqId = e.target.closest('.view-btn').dataset.id;
+        btn.addEventListener('click', function(e) {
+            const rfqId = this.getAttribute('data-id');
             viewRfqDetails(rfqId);
         });
     });
@@ -186,17 +228,20 @@ function updateStats() {
     }).length;
     
     // Update DOM
-    document.getElementById('total-rfqs').textContent = total;
-    document.getElementById('pending-rfqs').textContent = pending;
-    document.getElementById('month-rfqs').textContent = monthCount;
-    document.getElementById('responded-rfqs').textContent = responded;
+    const totalEl = document.getElementById('total-rfqs');
+    const pendingEl = document.getElementById('pending-rfqs');
+    const monthEl = document.getElementById('month-rfqs');
+    const respondedEl = document.getElementById('responded-rfqs');
+    
+    if (totalEl) totalEl.textContent = total;
+    if (pendingEl) pendingEl.textContent = pending;
+    if (monthEl) monthEl.textContent = monthCount;
+    if (respondedEl) respondedEl.textContent = responded;
 }
 
 function viewRfqDetails(rfqId) {
     const rfq = vendorRfqs.find(r => r.id === rfqId);
     if (!rfq) return;
-    
-    selectedRfqId = rfqId;
     
     // Get vendor's products from this RFQ
     const vendorItems = rfq.items.filter(item => 
@@ -259,35 +304,73 @@ function viewRfqDetails(rfqId) {
     }
     
     // Set details content
-    document.getElementById('rfq-details').innerHTML = detailsHtml;
+    const detailsEl = document.getElementById('rfq-details');
+    if (detailsEl) {
+        detailsEl.innerHTML = detailsHtml;
+    }
+    
+    // Store RFQ ID for delete
+    window.selectedRfqId = rfqId;
     
     // Show modal
-    const modal = new bootstrap.Modal(rfqModal);
+    const modal = new bootstrap.Modal(document.getElementById('rfqModal'));
     modal.show();
 }
 
 async function deleteSelectedRfq() {
-    if (!selectedRfqId || !confirm('Are you sure you want to delete this RFQ?')) return;
+    if (!window.selectedRfqId || !confirm('Are you sure you want to delete this RFQ?')) return;
     
     try {
         // Delete from Firestore
-        await deleteDoc(doc(db, 'rfqs', selectedRfqId));
+        await db.collection('rfqs').doc(window.selectedRfqId).delete();
         
         // Remove from local array
-        vendorRfqs = vendorRfqs.filter(r => r.id !== selectedRfqId);
+        vendorRfqs = vendorRfqs.filter(r => r.id !== window.selectedRfqId);
         
         // Update UI
         renderRfqsTable();
         updateStats();
         
         // Close modal
-        const modal = bootstrap.Modal.getInstance(rfqModal);
-        modal.hide();
+        const modal = bootstrap.Modal.getInstance(document.getElementById('rfqModal'));
+        if (modal) modal.hide();
         
-        alert('RFQ deleted successfully');
+        showMessage('RFQ deleted successfully', 'success');
         
     } catch (error) {
         console.error('Error deleting RFQ:', error);
-        alert('Error deleting RFQ');
+        showMessage('Error deleting RFQ: ' + error.message, 'danger');
     }
+}
+
+function showLoading(show) {
+    const saveBtn = document.getElementById('save-btn');
+    const refreshBtn = document.getElementById('refresh-btn');
+    
+    if (saveBtn) saveBtn.disabled = show;
+    if (refreshBtn) refreshBtn.disabled = show;
+}
+
+function showMessage(text, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = `
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        min-width: 300px;
+    `;
+    alertDiv.innerHTML = `
+        ${type === 'success' ? '✅' : '❌'} ${text}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            const bsAlert = new bootstrap.Alert(alertDiv);
+            bsAlert.close();
+        }
+    }, 3000);
 }
