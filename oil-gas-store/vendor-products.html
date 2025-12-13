@@ -189,5 +189,36 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script type="module" src="assets/js/vendor-products.js"></script>
+<!-- قبل </body> مباشرة -->
+<script>
+// كود احتياطي للتحقق
+window.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, checking scripts...');
+    
+    // التحقق من عناصر DOM
+    const elements = [
+        'product-form',
+        'products-table',
+        'save-btn',
+        'logout-btn'
+    ];
+    
+    elements.forEach(id => {
+        const el = document.getElementById(id);
+        console.log(id + ' found:', !!el);
+    });
+    
+    // تحميل Firebase بشكل احتياطي
+    if (typeof firebase === 'undefined') {
+        console.log('Firebase not loaded, trying to load...');
+        const script = document.createElement('script');
+        script.src = 'https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js';
+        script.onload = function() {
+            console.log('Firebase loaded');
+        };
+        document.head.appendChild(script);
+    }
+});
+</script>
 </body>
 </html>
