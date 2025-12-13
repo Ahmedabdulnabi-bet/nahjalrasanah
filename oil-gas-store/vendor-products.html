@@ -8,13 +8,21 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="assets/css/styles.css">
+    
+    <!-- حل مشكلة Tracking Prevention -->
+    <meta http-equiv="Content-Security-Policy" 
+          content="default-src 'self' https://*.firebaseapp.com https://*.googleapis.com https://www.gstatic.com https://cdn.jsdelivr.net;
+                   script-src 'self' https://*.googleapis.com https://www.gstatic.com https://cdn.jsdelivr.net 'unsafe-inline' 'unsafe-eval';
+                   style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline';
+                   img-src 'self' data: https:;
+                   connect-src 'self' https://*.firebaseio.com https://*.googleapis.com wss://*.firebaseio.com;
+                   font-src 'self' https://cdn.jsdelivr.net;">
 </head>
 <body data-page="vendor-products">
-    <!-- نفس navbar من index.html -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm sticky-top">
         <div class="container">
             <a class="navbar-brand d-flex align-items-center gap-2" href="index.html">
-                <img src="assets/images/logo-store.png" alt="Nahj Oil &amp; Gas Store" width="32" height="32" class="rounded-circle border border-secondary">
+                <img src="assets/images/logo-store.png" alt="Nahj Oil & Gas Store" width="32" height="32" class="rounded-circle border border-secondary">
                 <span class="fw-semibold">
                     Nahj Al-Rasanah<br>
                     <small class="text-muted" style="font-size:0.7rem;">My Products</small>
@@ -153,7 +161,14 @@
                                         </tr>
                                     </thead>
                                     <tbody id="products-table">
-                                        <!-- Products will load here -->
+                                        <tr>
+                                            <td colspan="5" class="text-center py-4">
+                                                <div class="spinner-border text-primary" role="status">
+                                                    <span class="visually-hidden">Loading...</span>
+                                                </div>
+                                                <p class="mt-2 text-muted">Loading products...</p>
+                                            </td>
+                                        </tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -187,38 +202,15 @@
         </div>
     </footer>
 
+    <!-- تحميل Firebase بشكل تقليدي (بدون type="module") -->
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-storage.js"></script>
+    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script type="module" src="assets/js/vendor-products.js"></script>
-<!-- قبل </body> مباشرة -->
-<script>
-// كود احتياطي للتحقق
-window.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded, checking scripts...');
     
-    // التحقق من عناصر DOM
-    const elements = [
-        'product-form',
-        'products-table',
-        'save-btn',
-        'logout-btn'
-    ];
-    
-    elements.forEach(id => {
-        const el = document.getElementById(id);
-        console.log(id + ' found:', !!el);
-    });
-    
-    // تحميل Firebase بشكل احتياطي
-    if (typeof firebase === 'undefined') {
-        console.log('Firebase not loaded, trying to load...');
-        const script = document.createElement('script');
-        script.src = 'https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js';
-        script.onload = function() {
-            console.log('Firebase loaded');
-        };
-        document.head.appendChild(script);
-    }
-});
-</script>
+    <!-- ملف JavaScript الجديد (غير module) -->
+    <script src="assets/js/vendor-products-fixed.js"></script>
 </body>
 </html>
