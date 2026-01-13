@@ -1,145 +1,42 @@
-/* assets/css/styles-enhanced.css */
-
-/* ========== NEW FEATURES ========== */
-
-/* Loading Skeletons */
-.skeleton {
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-  background-size: 200% 100%;
-  animation: loading 1.5s infinite;
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
-@keyframes loading {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+.hero-section {
+  position: relative;
+  background: radial-gradient(circle at top left, #0f172a 0, #020617 45%, #000 100%);
+  color: #f9fafb;
 }
 
-/* Toast Notifications */
-.toast-container {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 9999;
-  min-width: 300px;
-}
-
-/* Image Gallery */
-.product-gallery {
-  display: grid;
-  gap: 10px;
-  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-}
-
-.gallery-thumb {
-  cursor: pointer;
-  border: 2px solid transparent;
-  transition: all 0.3s;
-}
-
-.gallery-thumb:hover,
-.gallery-thumb.active {
-  border-color: #0d6efd;
-}
-
-/* Stats Cards */
-.stat-card {
-  border-left: 4px solid #0d6efd;
-  transition: transform 0.3s;
-}
-
-.stat-card:hover {
-  transform: translateY(-5px);
-}
-
-/* Progress Bars */
-.progress-sm {
-  height: 6px;
-}
-
-/* Badge Animations */
-.badge-pulse {
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0% { opacity: 1; }
-  50% { opacity: 0.5; }
-  100% { opacity: 1; }
-}
-
-/* ========== RESPONSIVE IMPROVEMENTS ========== */
-@media (max-width: 768px) {
-  .hero-section h1 {
-    font-size: 2rem !important;
-  }
-  
-  .table-responsive {
-    font-size: 0.875rem;
-  }
-  
-  .btn-group-sm .btn {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.75rem;
-  }
-}
-
-/* ========== PRINT STYLES ========== */
-@media print {
-  .no-print {
-    display: none !important;
-  }
-  
-  .print-only {
-    display: block !important;
-  }
-  
-  body {
-    font-size: 12pt;
-    color: #000 !important;
-    background: #fff !important;
-  }
-  
-  .card {
-    border: 1px solid #000 !important;
-    box-shadow: none !important;
-  }
-}
-
-/* ========== ACCESSIBILITY ========== */
-:focus {
-  outline: 2px solid #0d6efd;
-  outline-offset: 2px;
-}
-
-.skip-to-content {
+.hero-overlay {
   position: absolute;
-  top: -40px;
-  left: 0;
-  background: #000;
-  color: #fff;
-  padding: 8px;
-  z-index: 9999;
+  inset: 0;
+  background-image: linear-gradient(135deg, rgba(37, 99, 235, 0.5), rgba(16, 185, 129, 0.35));
+  opacity: 0.45;
 }
 
-.skip-to-content:focus {
-  top: 0;
+.hero-section .container {
+  position: relative;
+  z-index: 1;
 }
 
-/* ========== CUSTOM SCROLLBAR ========== */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 8px;
+.product-card {
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
 }
 
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 4px;
+.product-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 0.75rem 1.5rem rgba(15, 23, 42, 0.3);
 }
 
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 4px;
+.breadcrumb {
+  --bs-breadcrumb-divider: "›";
 }
 
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #555;
+.table-sm th {
+  white-space: nowrap;
+}
+
+footer {
+  font-size: 0.85rem;
 }

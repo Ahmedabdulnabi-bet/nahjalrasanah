@@ -1,430 +1,386 @@
-// assets/js/vendor-admin.js
-import { firebaseConfig, COLLECTIONS, USER_ROLES, RFQ_STATUS } from './firebase-config.js';
+// assets/js/admin.js
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
-import { 
-  getAuth, 
-  signInWithEmailAndPassword, 
-  signOut, 
+// Firebase configuration
+import { firebaseConfig } from './firebase-config.js';
+
+import {
+  initializeApp
+} from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js';
+
+import {
+  getAuth,
+  signInWithEmailAndPassword,
   onAuthStateChanged,
-  createUserWithEmailAndPassword
-} from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
-import { 
-  getFirestore, 
-  collection, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  getDocs, 
-  getDoc,
-  query, 
-  where,
-  orderBy,
-  serverTimestamp,
-  setDoc
-} from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
-import { 
-  getStorage, 
-  ref, 
-  uploadBytes, 
-  getDownloadURL 
-} from "https://www.gstatic.com/firebasejs/10.13.1/firebase-storage.js";
+  signOut
+} from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js';
 
-// Initialize Firebase
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  getDocs,
+  updateDoc,
+  deleteDoc,
+  doc,
+  serverTimestamp,
+  getDoc
+} from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js';
+
+import {
+  getStorage,
+  ref,
+  uploadBytes,
+  getDownloadURL
+} from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-storage.js';
+
+// Initialise Firebase services
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
+const productsCol = collection(db, 'products');
 
-// Global state
+// Keep track of logged-in user and role
 let currentUser = null;
-let userRole = null;
-let products = [];
-let rfqs = [];
+let isAdmin = false;
 
-// ========== AUTHENTICATION ==========
-async function checkUserRole(userId) {
-  try {
-    const userDoc = await getDoc(doc(db, COLLECTIONS.USERS, userId));
-    if (userDoc.exists()) {
-      return userDoc.data().role;
-    }
-    return null;
-  } catch (error) {
-    console.error('Error checking user role:', error);
-    return null;
+// DOM elements
+const loginSection = document.getElementById('login-section');
+const adminSection = document.getElementById('admin-section');
+const loginForm = document.getElementById('login-form');
+const loginEmailInput = document.getElementById('login-email');
+const loginPasswordInput = document.getElementById('login-password');
+const loginErrorEl = document.getElementById('login-error');
+const logoutBtn = document.getElementById('logout-btn');
+const currentUserEmailEl = document.getElementById('current-user-email');
+const productForm = document.getElementById('product-form');
+const productIdInput = document.getElementById('product-id');
+const productNameInput = document.getElementById('product-name');
+const productPartNumberInput = document.getElementById('product-part-number');
+const productCategoryInput = document.getElementById('product-category');
+const productSegmentInput = document.getElementById('product-segment');
+const productBrandInput = document.getElementById('product-brand');
+const productOriginInput = document.getElementById('product-origin');
+const productShortInput = document.getElementById('product-short');
+const productLongInput = document.getElementById('product-long');
+const productTagsInput = document.getElementById('product-tags');
+const productSpecsInput = document.getElementById('product-specs');
+const productActiveInput = document.getElementById('product-active');
+const productImageInput = document.getElementById('product-image');
+const productDatasheetInput = document.getElementById('product-datasheet');
+const productVideoInput = document.getElementById('product-video');
+const productFormStatus = document.getElementById('product-form-status');
+const formTitle = document.getElementById('form-title');
+const resetFormBtn = document.getElementById('reset-form-btn');
+const saveProductBtn = document.getElementById('save-product-btn');
+const productsTableBody = document.getElementById('products-table-body');
+const productsTableStatus = document.getElementById('products-table-status');
+const refreshProductsBtn = document.getElementById('refresh-products-btn');
+
+// Handle login form submission
+loginForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  loginErrorEl.classList.add('d-none');
+  loginErrorEl.textContent = '';
+
+  const email = loginEmailInput.value.trim();
+  const password = loginPasswordInput.value;
+  if (!email || !password) {
+    loginErrorEl.textContent = 'Email and password are required.';
+    loginErrorEl.classList.remove('d-none');
+    return;
   }
-}
-
-async function handleLogin(email, password) {
   try {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
-    
-    // Check user role
-    const role = await checkUserRole(user.uid);
-    
-    if (!role) {
-      throw new Error('User role not found. Contact administrator.');
-    }
-    
-    return { user, role };
-  } catch (error) {
-    console.error('Login error:', error);
-    throw error;
+    await signInWithEmailAndPassword(auth, email, password);
+    loginForm.reset();
+  } catch (err) {
+    console.error(err);
+    loginErrorEl.textContent = 'Login failed. Check credentials.';
+    loginErrorEl.classList.remove('d-none');
   }
-}
+});
 
-// ========== PRODUCT MANAGEMENT ==========
-async function loadProducts() {
-  try {
-    let productsQuery;
-    
-    if (userRole === USER_ROLES.ADMIN) {
-      // Admin sees all products
-      productsQuery = query(
-        collection(db, COLLECTIONS.PRODUCTS),
-        orderBy('createdAt', 'desc')
-      );
-    } else if (userRole === USER_ROLES.VENDOR) {
-      // Vendor sees only their products
-      productsQuery = query(
-        collection(db, COLLECTIONS.PRODUCTS),
-        where('vendorId', '==', currentUser.uid),
-        orderBy('createdAt', 'desc')
-      );
-    } else {
-      throw new Error('Unauthorized access');
-    }
-    
-    const querySnapshot = await getDocs(productsQuery);
-    products = [];
-    
-    querySnapshot.forEach((doc) => {
-      products.push({
-        id: doc.id,
-        ...doc.data()
-      });
-    });
-    
-    console.log(`Loaded ${products.length} products for ${userRole}`);
-    return products;
-    
-  } catch (error) {
-    console.error('Error loading products:', error);
-    throw error;
-  }
-}
+// Handle logout
+logoutBtn.addEventListener('click', async () => {
+  await signOut(auth);
+});
 
-async function saveProduct(productData, productId = null, files = {}) {
-  try {
-    // Upload files if provided
-    if (files.image) {
-      productData.image = await uploadFile(files.image, 'images');
-    }
-    if (files.video) {
-      productData.video = await uploadFile(files.video, 'videos');
-    }
-    if (files.datasheet) {
-      productData.datasheet = await uploadFile(files.datasheet, 'datasheets');
-    }
-    
-    // Add metadata
-    productData.updatedAt = serverTimestamp();
-    
-    if (!productId) {
-      // New product
-      productData.createdAt = serverTimestamp();
-      productData.vendorId = currentUser.uid;
-      productData.vendorEmail = currentUser.email;
-      
-      // Add vendor info (basic only)
-      productData.vendorInfo = {
-        vendorId: currentUser.uid,
-        vendorName: await getVendorName(currentUser.uid),
-        vendorType: 'supplier'
-      };
-      
-      // All contacts through Nahj Al-Rasanah
-      productData.contactInfo = {
-        primaryContact: 'sales@nahjalrasanah.com',
-        phone: '+964 784 349 9555',
-        responseTime: '24-48 hours'
-      };
-      
-      const docRef = await addDoc(collection(db, COLLECTIONS.PRODUCTS), productData);
-      return { id: docRef.id, ...productData };
-    } else {
-      // Update existing product
-      await updateDoc(doc(db, COLLECTIONS.PRODUCTS, productId), productData);
-      return { id: productId, ...productData };
-    }
-    
-  } catch (error) {
-    console.error('Error saving product:', error);
-    throw error;
-  }
-}
-
-async function deleteProduct(productId) {
-  try {
-    // Check if user has permission to delete
-    const productDoc = await getDoc(doc(db, COLLECTIONS.PRODUCTS, productId));
-    if (!productDoc.exists()) {
-      throw new Error('Product not found');
-    }
-    
-    const product = productDoc.data();
-    
-    // Admin can delete any product, vendor can delete only their products
-    if (userRole === USER_ROLES.VENDOR && product.vendorId !== currentUser.uid) {
-      throw new Error('You can only delete your own products');
-    }
-    
-    await deleteDoc(doc(db, COLLECTIONS.PRODUCTS, productId));
-    return true;
-    
-  } catch (error) {
-    console.error('Error deleting product:', error);
-    throw error;
-  }
-}
-
-// ========== RFQ MANAGEMENT ==========
-async function loadRFQs() {
-  try {
-    let rfqsQuery;
-    
-    if (userRole === USER_ROLES.ADMIN) {
-      // Admin sees all RFQs
-      rfqsQuery = query(
-        collection(db, COLLECTIONS.RFQS),
-        orderBy('createdAt', 'desc')
-      );
-    } else if (userRole === USER_ROLES.VENDOR) {
-      // Vendor sees RFQs for their products only
-      // First, get vendor's product IDs
-      const productsQuery = query(
-        collection(db, COLLECTIONS.PRODUCTS),
-        where('vendorId', '==', currentUser.uid)
-      );
-      
-      const productsSnapshot = await getDocs(productsQuery);
-      const productIds = productsSnapshot.docs.map(doc => doc.id);
-      
-      if (productIds.length === 0) {
-        rfqs = [];
-        return rfqs;
-      }
-      
-      // Get RFQs that contain vendor's products
-      // Note: This is simplified. For better performance, consider a different data structure
-      rfqsQuery = query(
-        collection(db, COLLECTIONS.RFQS),
-        orderBy('createdAt', 'desc')
-      );
-      
-    } else {
-      throw new Error('Unauthorized access');
-    }
-    
-    const querySnapshot = await getDocs(rfqsQuery);
-    rfqs = [];
-    
-    querySnapshot.forEach((doc) => {
-      const rfq = {
-        id: doc.id,
-        ...doc.data()
-      };
-      
-      // For vendors, filter RFQs to show only those containing their products
-      if (userRole === USER_ROLES.VENDOR) {
-        const productIds = products.map(p => p.id);
-        const hasVendorProducts = rfq.items?.some(item => 
-          productIds.includes(item.productId)
-        );
-        
-        if (hasVendorProducts) {
-          rfqs.push(rfq);
+// Listen for auth state changes and load appropriate UI
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    // User signed in
+    loginSection.classList.add('d-none');
+    adminSection.classList.remove('d-none');
+    logoutBtn.classList.remove('d-none');
+    currentUserEmailEl.textContent = user.email || '';
+    currentUserEmailEl.classList.remove('d-none');
+    currentUser = user;
+    // Determine user role by reading users collection
+    isAdmin = false;
+    try {
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        if (data && data.role === 'admin') {
+          isAdmin = true;
         }
-      } else {
-        rfqs.push(rfq);
       }
-    });
-    
-    console.log(`Loaded ${rfqs.length} RFQs for ${userRole}`);
-    return rfqs;
-    
-  } catch (error) {
-    console.error('Error loading RFQs:', error);
-    throw error;
-  }
-}
-
-async function updateRFQStatus(rfqId, status, notes = '') {
-  try {
-    const updateData = {
-      status: status,
-      updatedAt: serverTimestamp(),
-      updatedBy: currentUser.uid
-    };
-    
-    if (notes) {
-      updateData.notes = notes;
+    } catch (err) {
+      console.error(err);
     }
-    
-    await updateDoc(doc(db, COLLECTIONS.RFQS, rfqId), updateData);
-    return true;
-    
-  } catch (error) {
-    console.error('Error updating RFQ:', error);
-    throw error;
+    // Load products after role determination
+    loadProducts();
+  } else {
+    // User signed out
+    loginSection.classList.remove('d-none');
+    adminSection.classList.add('d-none');
+    logoutBtn.classList.add('d-none');
+    currentUserEmailEl.classList.add('d-none');
+    currentUserEmailEl.textContent = '';
+    clearProductsTable();
+    currentUser = null;
+    isAdmin = false;
+  }
+});
+
+// Utility to set form loading state
+function setFormLoading(isLoading) {
+  saveProductBtn.disabled = isLoading;
+  resetFormBtn.disabled = isLoading;
+  if (isLoading) {
+    productFormStatus.classList.remove('text-danger');
+    productFormStatus.classList.add('text-muted');
+    productFormStatus.textContent = 'Saving, please wait...';
   }
 }
 
-// ========== USER MANAGEMENT (Admin only) ==========
-async function createUserAccount(email, password, userData) {
-  if (userRole !== USER_ROLES.ADMIN) {
-    throw new Error('Only administrators can create user accounts');
-  }
-  
-  try {
-    // Create auth account
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
-    
-    // Create user document
-    await setDoc(doc(db, COLLECTIONS.USERS, user.uid), {
-      email: email,
-      role: userData.role || USER_ROLES.VENDOR,
-      createdAt: serverTimestamp(),
-      ...userData
-    });
-    
-    // If vendor, create vendor document
-    if (userData.role === USER_ROLES.VENDOR) {
-      await setDoc(doc(db, COLLECTIONS.VENDORS, user.uid), {
-        email: email,
-        companyName: userData.companyName || '',
-        contactPerson: userData.contactPerson || '',
-        phone: userData.phone || '',
-        address: userData.address || '',
-        status: 'active',
-        createdAt: serverTimestamp()
-      });
+// Reset product form to initial state
+function resetProductForm() {
+  productForm.reset();
+  productIdInput.value = '';
+  productActiveInput.checked = true;
+  productImageInput.value = '';
+  productDatasheetInput.value = '';
+  productVideoInput.value = '';
+  formTitle.textContent = 'Add New Product';
+  productFormStatus.textContent = '';
+}
+
+resetFormBtn.addEventListener('click', () => {
+  resetProductForm();
+});
+
+// Parse newline-separated specs into an object
+function parseSpecs(text) {
+  const specs = {};
+  (text || '').split('\n').forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+    const [key, ...rest] = trimmed.split(':');
+    const value = rest.join(':').trim();
+    if (key && value) {
+      specs[key.trim()] = value;
     }
-    
-    return user.uid;
-    
-  } catch (error) {
-    console.error('Error creating user account:', error);
-    throw error;
-  }
-}
-
-async function getVendorName(vendorId) {
-  try {
-    const vendorDoc = await getDoc(doc(db, COLLECTIONS.VENDORS, vendorId));
-    if (vendorDoc.exists()) {
-      return vendorDoc.data().companyName || 'Vendor';
-    }
-    return 'Vendor';
-  } catch (error) {
-    console.error('Error getting vendor name:', error);
-    return 'Vendor';
-  }
-}
-
-// ========== FILE UPLOAD ==========
-async function uploadFile(file, folder) {
-  try {
-    const fileName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
-    const storagePath = `products/${currentUser.uid}/${folder}/${fileName}`;
-    const storageRef = ref(storage, storagePath);
-    
-    await uploadBytes(storageRef, file);
-    return await getDownloadURL(storageRef);
-    
-  } catch (error) {
-    console.error('Error uploading file:', error);
-    throw error;
-  }
-}
-
-// ========== UTILITIES ==========
-function formatDate(timestamp) {
-  if (!timestamp) return 'N/A';
-  
-  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
   });
+  return specs;
 }
 
-function showMessage(elementId, message, type = 'info') {
-  const element = document.getElementById(elementId);
-  if (!element) return;
-  
-  const alertClass = {
-    success: 'alert-success',
-    danger: 'alert-danger',
-    warning: 'alert-warning',
-    info: 'alert-info'
-  }[type] || 'alert-info';
-  
-  element.innerHTML = `
-    <div class="alert ${alertClass} alert-dismissible fade show">
-      ${message}
-      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-  `;
-  
-  // Auto-remove after 5 seconds
-  setTimeout(() => {
-    const alert = element.querySelector('.alert');
-    if (alert) {
-      alert.remove();
+// Convert specs object back into newline-separated text
+function specsToText(specs) {
+  if (!specs) return '';
+  return Object.entries(specs)
+    .map(([k, v]) => `${k}: ${v}`)
+    .join('\n');
+}
+
+// Upload a file to Cloud Storage if present and return its download URL
+async function uploadFileIfExists(fileInput, pathPrefix) {
+  const file = fileInput.files[0];
+  if (!file) return null;
+  const path = `${pathPrefix}/${Date.now()}_${file.name}`;
+  const storageRef = ref(storage, path);
+  await uploadBytes(storageRef, file);
+  const url = await getDownloadURL(storageRef);
+  return url;
+}
+
+// Handle product form submission (create or update)
+productForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = productNameInput.value.trim();
+  if (!name) {
+    productFormStatus.classList.add('text-danger');
+    productFormStatus.textContent = 'Product name is required.';
+    return;
+  }
+  setFormLoading(true);
+  try {
+    const partNumber = productPartNumberInput.value.trim();
+    const category = productCategoryInput.value.trim();
+    const segment = productSegmentInput.value.trim();
+    const brand = productBrandInput.value.trim();
+    const origin = productOriginInput.value.trim();
+    const shortDescription = productShortInput.value.trim();
+    const longDescription = productLongInput.value.trim();
+    const tagsStr = productTagsInput.value.trim();
+    const tags = tagsStr ? tagsStr.split(',').map(t => t.trim()).filter(Boolean) : [];
+    const specs = parseSpecs(productSpecsInput.value);
+    const isActive = productActiveInput.checked;
+    const existingId = productIdInput.value || null;
+    // Upload files if provided
+    const imageUrl = await uploadFileIfExists(productImageInput, 'images');
+    const datasheetUrl = await uploadFileIfExists(productDatasheetInput, 'datasheets');
+    const videoUrl = await uploadFileIfExists(productVideoInput, 'videos');
+    // Base payload for both new and existing products
+    const basePayload = {
+      name,
+      partNumber: partNumber || null,
+      category: category || null,
+      segment: segment || null,
+      brand: brand || null,
+      origin: origin || null,
+      shortDescription: shortDescription || null,
+      longDescription: longDescription || null,
+      tags,
+      specs,
+      isActive,
+      updatedAt: serverTimestamp()
+    };
+    if (imageUrl) {
+      basePayload.image = imageUrl;
+      basePayload.gallery = [imageUrl];
     }
-  }, 5000);
+    if (datasheetUrl) basePayload.datasheet = datasheetUrl;
+    if (videoUrl) basePayload.video = videoUrl;
+    if (existingId) {
+      // Updating an existing product (do not overwrite vendor fields)
+      const refDoc = doc(db, 'products', existingId);
+      await updateDoc(refDoc, basePayload);
+      productFormStatus.classList.remove('text-danger');
+      productFormStatus.classList.add('text-success');
+      productFormStatus.textContent = 'Product updated successfully.';
+    } else {
+      // Creating a new product – attach vendor info
+      const payloadNew = {
+        ...basePayload,
+        createdAt: serverTimestamp(),
+        vendorId: currentUser ? currentUser.uid : null,
+        vendorEmail: currentUser ? currentUser.email : null
+      };
+      await addDoc(productsCol, payloadNew);
+      productFormStatus.classList.remove('text-danger');
+      productFormStatus.classList.add('text-success');
+      productFormStatus.textContent = 'Product added successfully.';
+    }
+    await loadProducts();
+    resetProductForm();
+  } catch (err) {
+    console.error(err);
+    productFormStatus.classList.remove('text-success');
+    productFormStatus.classList.add('text-danger');
+    productFormStatus.textContent = 'Error while saving product.';
+  } finally {
+    setFormLoading(false);
+  }
+});
+
+// Load products from Firestore, applying vendor filter if user is not admin
+async function loadProducts() {
+  productsTableStatus.textContent = 'Loading products...';
+  clearProductsTable();
+  try {
+    const snapshot = await getDocs(productsCol);
+    let items = snapshot.docs.map(d => ({
+      id: d.id,
+      ...d.data()
+    }));
+    // Apply vendor filter for non-admin users
+    if (!isAdmin) {
+      const uid = currentUser ? currentUser.uid : null;
+      items = items.filter(item => item.vendorId === uid);
+    }
+    if (!items.length) {
+      productsTableStatus.textContent = 'No products found yet.';
+      return;
+    }
+    // Sort by name
+    items.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    for (const item of items) {
+      const tr = document.createElement('tr');
+      const tdName = document.createElement('td');
+      tdName.textContent = item.name || '';
+      tr.appendChild(tdName);
+      const tdPart = document.createElement('td');
+      tdPart.textContent = item.partNumber || '';
+      tr.appendChild(tdPart);
+      const tdCategory = document.createElement('td');
+      tdCategory.textContent = item.category || '';
+      tr.appendChild(tdCategory);
+      const tdActive = document.createElement('td');
+      tdActive.innerHTML = item.isActive ? '<span class="badge bg-success">Yes</span>' : '<span class="badge bg-secondary">No</span>';
+      tr.appendChild(tdActive);
+      const tdActions = document.createElement('td');
+      tdActions.classList.add('text-nowrap');
+      const editBtn = document.createElement('button');
+      editBtn.className = 'btn btn-sm btn-outline-primary me-1';
+      editBtn.textContent = 'Edit';
+      editBtn.addEventListener('click', () => fillFormForEdit(item));
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'btn btn-sm btn-outline-danger';
+      deleteBtn.textContent = 'Delete';
+      deleteBtn.addEventListener('click', () => deleteProduct(item.id, item.name));
+      tdActions.appendChild(editBtn);
+      tdActions.appendChild(deleteBtn);
+      tr.appendChild(tdActions);
+      productsTableBody.appendChild(tr);
+    }
+    productsTableStatus.textContent = `${items.length} product(s) loaded.`;
+  } catch (err) {
+    console.error(err);
+    productsTableStatus.textContent = 'Error loading products.';
+  }
 }
 
-// ========== EXPORTS ==========
-export {
-  // Authentication
-  auth,
-  handleLogin,
-  signOut,
-  onAuthStateChanged,
-  
-  // User
-  currentUser,
-  userRole,
-  checkUserRole,
-  
-  // Products
-  loadProducts,
-  saveProduct,
-  deleteProduct,
-  products,
-  
-  // RFQs
-  loadRFQs,
-  updateRFQStatus,
-  rfqs,
-  
-  // Users (Admin only)
-  createUserAccount,
-  
-  // Utilities
-  formatDate,
-  showMessage,
-  
-  // Constants
-  USER_ROLES,
-  RFQ_STATUS
-};
+// Clear products table
+function clearProductsTable() {
+  productsTableBody.innerHTML = '';
+}
+
+// Fill form with existing product data for editing
+function fillFormForEdit(item) {
+  productIdInput.value = item.id;
+  productNameInput.value = item.name || '';
+  productPartNumberInput.value = item.partNumber || '';
+  productCategoryInput.value = item.category || '';
+  productSegmentInput.value = item.segment || '';
+  productBrandInput.value = item.brand || '';
+  productOriginInput.value = item.origin || '';
+  productShortInput.value = item.shortDescription || '';
+  productLongInput.value = item.longDescription || '';
+  productTagsInput.value = (item.tags || []).join(', ');
+  productSpecsInput.value = specsToText(item.specs || {});
+  productActiveInput.checked = !!item.isActive;
+  productImageInput.value = '';
+  productDatasheetInput.value = '';
+  productVideoInput.value = '';
+  formTitle.textContent = `Edit Product: ${item.name || ''}`;
+  productFormStatus.textContent = '';
+}
+
+// Delete a product after confirmation
+async function deleteProduct(id, name) {
+  const ok = confirm(`Are you sure you want to delete: "${name}" ?`);
+  if (!ok) return;
+  try {
+    await deleteDoc(doc(db, 'products', id));
+    await loadProducts();
+  } catch (err) {
+    console.error(err);
+    alert('Error deleting product.');
+  }
+}
+
+// Refresh products list when refresh button clicked
+refreshProductsBtn.addEventListener('click', () => {
+  loadProducts();
+});
