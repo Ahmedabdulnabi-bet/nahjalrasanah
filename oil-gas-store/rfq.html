@@ -62,13 +62,16 @@
             </li>
           </ul>
           
-          <a href="admin.html" id="auth-button" class="btn btn-outline-light btn-sm ms-lg-3 d-flex align-items-center gap-1">
+          <div id="auth-nav-container">
+            <a href="admin.html" class="btn btn-outline-light btn-sm ms-lg-3 d-flex align-items-center gap-1">
               <i class="bi bi-person-fill-lock"></i>
-              <span id="auth-button-text">Admin Login</span>
-          </a>
+              <span id="auth-nav-text">Admin Login</span>
+            </a>
+          </div>
         </div>
       </div>
     </nav>
+    
     <main class="py-4">
       <div class="container">
         <div class="row gy-4">
@@ -94,12 +97,19 @@
                         <th style="width:10%;"></th>
                       </tr>
                     </thead>
-                    <tbody id="rfq-table-body"></tbody>
+                    <tbody id="rfq-table-body">
+                      <tr id="rfq-empty-row">
+                        <td colspan="5" class="text-center py-4">
+                          <i class="bi bi-cart display-4 text-muted mb-3"></i>
+                          <p class="text-muted mb-0">Your RFQ basket is empty</p>
+                        </td>
+                      </tr>
+                    </tbody>
                   </table>
                 </div>
-                <p id="rfq-empty" class="small text-muted mt-3 mb-0 d-none">
-                  Your RFQ basket is currently empty. Please add items from the <a href="index.html#catalog">catalog</a>.
-                </p>
+                <div id="rfq-total" class="text-end mt-3 d-none">
+                  <strong>Total Items: <span id="total-items">0</span></strong>
+                </div>
               </div>
             </div>
           </div>
@@ -138,17 +148,25 @@
                     <label class="form-label small">Additional Notes</label>
                     <textarea class="form-control form-control-sm" rows="4" name="notes" placeholder="Tender reference, required delivery, technical conditions, documentation requirements..."></textarea>
                   </div>
-                  <button type="submit" class="btn btn-primary w-100 mb-2">Prepare RFQ Email</button>
+                  <button type="submit" class="btn btn-primary w-100 mb-2" id="submit-rfq-btn">
+                    Submit RFQ
+                  </button>
                   <p class="small text-muted mb-0">
-                    Your email client will open with a pre-filled RFQ including the list of selected items. Please review and attach any additional documents (BOQ, datasheets, tender forms) before sending.
+                    Your RFQ will be sent to Nahj Al-Rasanah's sales team. You will receive a confirmation email.
                   </p>
                 </form>
+                <div id="rfq-success" class="alert alert-success mt-3 d-none">
+                  <i class="bi bi-check-circle"></i> 
+                  <strong>RFQ Submitted Successfully!</strong><br>
+                  Your request has been sent. Our sales team will contact you within 24-48 hours.
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
     </main>
+    
     <footer class="bg-dark text-light mt-5 pt-4 pb-3">
       <div class="container">
         <div class="row gy-3">
@@ -180,8 +198,295 @@
         <p class="small text-center mb-0">&copy; <span id="year"></span> Nahj Al-Rasanah LLC. All rights reserved.</p>
       </div>
     </footer>
+    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script type="module" src="assets/js/app.js"></script>
-    <script type="module" src="assets/js/auth-nav.js"></script>
+    
+    <script type="module">
+      import { firebaseConfig, COLLECTIONS } from './assets/js/firebase-config.js';
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+      import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
+      
+      document.addEventListener('DOMContentLoaded', function() {
+        console.log('RFQ Basket page loaded');
+        
+        // Set copyright year
+        const yearSpan = document.getElementById('year');
+        if (yearSpan) {
+          yearSpan.textContent = new Date().getFullYear();
+        }
+        
+        // Storage key for RFQ cart
+        const STORAGE_KEY_RFQ = 'nahj_rfq_cart_v2';
+        
+        // Initialize Firebase
+        let db;
+        try {
+          const app = initializeApp(firebaseConfig);
+          db = getFirestore(app);
+          console.log('✅ RFQ Basket Firebase initialized');
+        } catch (error) {
+          console.error('❌ Firebase init error:', error);
+          showError('System initialization failed');
+          return;
+        }
+        
+        // Load RFQ cart from localStorage
+        function getRfqCart() {
+          try {
+            const cart = localStorage.getItem(STORAGE_KEY_RFQ);
+            return cart ? JSON.parse(cart) : [];
+          } catch {
+            return [];
+          }
+        }
+        
+        // Save RFQ cart to localStorage
+        function saveRfqCart(cart) {
+          try {
+            localStorage.setItem(STORAGE_KEY_RFQ, JSON.stringify(cart));
+            return true;
+          } catch {
+            return false;
+          }
+        }
+        
+        // Render RFQ cart
+        function renderRfqCart() {
+          const cart = getRfqCart();
+          const tableBody = document.getElementById('rfq-table-body');
+          const emptyRow = document.getElementById('rfq-empty-row');
+          const totalDiv = document.getElementById('rfq-total');
+          const totalItemsSpan = document.getElementById('total-items');
+          
+          if (!tableBody) return;
+          
+          if (cart.length === 0) {
+            if (emptyRow) emptyRow.style.display = 'table-row';
+            if (totalDiv) totalDiv.classList.add('d-none');
+            return;
+          }
+          
+          if (emptyRow) emptyRow.style.display = 'none';
+          if (totalDiv) totalDiv.classList.remove('d-none');
+          
+          let html = '';
+          let totalItems = 0;
+          
+          cart.forEach((item, index) => {
+            totalItems += item.qty || 1;
+            html += `
+              <tr>
+                <td>
+                  <strong>${item.name || 'Unknown Product'}</strong><br>
+                  <small class="text-muted">${item.description || ''}</small>
+                </td>
+                <td>${item.partNumber || 'N/A'}</td>
+                <td>
+                  <div class="input-group input-group-sm" style="width: 100px;">
+                    <button class="btn btn-outline-secondary btn-sm qty-minus" type="button" data-index="${index}">-</button>
+                    <input type="number" class="form-control text-center qty-input" value="${item.qty || 1}" min="1" data-index="${index}">
+                    <button class="btn btn-outline-secondary btn-sm qty-plus" type="button" data-index="${index}">+</button>
+                  </div>
+                </td>
+                <td>${item.category || 'General'}</td>
+                <td>
+                  <button class="btn btn-sm btn-outline-danger remove-item" data-index="${index}">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </td>
+              </tr>
+            `;
+          });
+          
+          tableBody.innerHTML = html;
+          if (totalItemsSpan) totalItemsSpan.textContent = totalItems;
+          
+          // Add event listeners
+          document.querySelectorAll('.qty-minus').forEach(btn => {
+            btn.addEventListener('click', function() {
+              const index = parseInt(this.getAttribute('data-index'));
+              updateQuantity(index, -1);
+            });
+          });
+          
+          document.querySelectorAll('.qty-plus').forEach(btn => {
+            btn.addEventListener('click', function() {
+              const index = parseInt(this.getAttribute('data-index'));
+              updateQuantity(index, 1);
+            });
+          });
+          
+          document.querySelectorAll('.qty-input').forEach(input => {
+            input.addEventListener('change', function() {
+              const index = parseInt(this.getAttribute('data-index'));
+              const newQty = parseInt(this.value) || 1;
+              updateQuantity(index, 0, newQty);
+            });
+          });
+          
+          document.querySelectorAll('.remove-item').forEach(btn => {
+            btn.addEventListener('click', function() {
+              const index = parseInt(this.getAttribute('data-index'));
+              removeItem(index);
+            });
+          });
+        }
+        
+        // Update item quantity
+        function updateQuantity(index, delta, newQty = null) {
+          const cart = getRfqCart();
+          if (index >= 0 && index < cart.length) {
+            if (newQty !== null) {
+              cart[index].qty = Math.max(1, newQty);
+            } else {
+              cart[index].qty = Math.max(1, (cart[index].qty || 1) + delta);
+            }
+            
+            if (saveRfqCart(cart)) {
+              renderRfqCart();
+              showMessage('Quantity updated', 'info');
+            }
+          }
+        }
+        
+        // Remove item from cart
+        function removeItem(index) {
+          const cart = getRfqCart();
+          if (index >= 0 && index < cart.length) {
+            const itemName = cart[index].name;
+            cart.splice(index, 1);
+            
+            if (saveRfqCart(cart)) {
+              renderRfqCart();
+              showMessage(`"${itemName}" removed from basket`, 'warning');
+            }
+          }
+        }
+        
+        // Clear entire cart
+        document.getElementById('btn-clear-rfq').addEventListener('click', function() {
+          if (confirm('Are you sure you want to clear the entire RFQ basket?')) {
+            localStorage.removeItem(STORAGE_KEY_RFQ);
+            renderRfqCart();
+            showMessage('RFQ basket cleared', 'info');
+          }
+        });
+        
+        // Handle RFQ form submission
+        document.getElementById('rfq-form').addEventListener('submit', async function(e) {
+          e.preventDefault();
+          
+          const cart = getRfqCart();
+          if (cart.length === 0) {
+            showMessage('Please add items to your RFQ basket first', 'warning');
+            return;
+          }
+          
+          // Get form data
+          const formData = new FormData(this);
+          const rfqData = {
+            company: formData.get('company'),
+            contact: formData.get('contact'),
+            email: formData.get('email'),
+            phone: formData.get('phone'),
+            project: formData.get('project'),
+            delivery: formData.get('delivery'),
+            notes: formData.get('notes'),
+            items: cart.map(item => ({
+              id: item.id,
+              name: item.name,
+              partNumber: item.partNumber,
+              category: item.category,
+              qty: item.qty || 1
+            })),
+            status: 'pending',
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          };
+          
+          // Validate required fields
+          if (!rfqData.company || !rfqData.contact || !rfqData.email || !rfqData.phone) {
+            showMessage('Please fill all required fields', 'warning');
+            return;
+          }
+          
+          // Show loading
+          const submitBtn = document.getElementById('submit-rfq-btn');
+          const originalText = submitBtn.innerHTML;
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Submitting...';
+          
+          try {
+            // Save to Firestore
+            await addDoc(collection(db, COLLECTIONS.RFQS), rfqData);
+            
+            // Clear cart
+            localStorage.removeItem(STORAGE_KEY_RFQ);
+            
+            // Show success message
+            document.getElementById('rfq-success').classList.remove('d-none');
+            document.getElementById('rfq-form').reset();
+            renderRfqCart();
+            
+            // Reset form after 5 seconds
+            setTimeout(() => {
+              document.getElementById('rfq-success').classList.add('d-none');
+            }, 5000);
+            
+            console.log('✅ RFQ submitted successfully');
+            
+          } catch (error) {
+            console.error('❌ Error submitting RFQ:', error);
+            showMessage('Error submitting RFQ: ' + error.message, 'danger');
+          } finally {
+            // Reset button
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+          }
+        });
+        
+        // Helper functions
+        function showMessage(text, type) {
+          const alertDiv = document.createElement('div');
+          alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+          alertDiv.style.cssText = `
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            min-width: 300px;
+          `;
+          alertDiv.innerHTML = `
+            ${text}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          `;
+          
+          document.body.appendChild(alertDiv);
+          
+          setTimeout(() => {
+            if (alertDiv.parentNode) {
+              alertDiv.remove();
+            }
+          }, 3000);
+        }
+        
+        function showError(message) {
+          const container = document.querySelector('.container');
+          if (container) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-danger alert-dismissible fade show mt-3';
+            alertDiv.innerHTML = `
+              ${message}
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            container.insertBefore(alertDiv, container.firstChild);
+          }
+        }
+        
+        // Initial render
+        renderRfqCart();
+        
+        console.log('🚀 RFQ Basket Page Initialized');
+      });
+    </script>
   </body>
 </html>
