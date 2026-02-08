@@ -1,0 +1,41 @@
+// assets/data/vendors.json
+{
+  "vendors": [
+    {
+      "id": "vendor-001",
+      "email": "vendor1@example.com",
+      "companyName": "Technical Equipment Co.",
+      "companyNameAr": "شركة المعدات الفنية",
+      "contactPerson": "Ali Hassan",
+      "phone": "+9647701234567",
+      "address": "Baghdad, Iraq",
+      "website": "https://techequip.com",
+      "specialization": ["Valves", "Actuators"],
+      "status": "active",
+      "verification": {
+        "isVerified": true,
+        "verifiedDate": "2024-06-15",
+        "verificationMethod": "document"
+      },
+      "stats": {
+        "productsCount": 24,
+        "rfqsCount": 18,
+        "responseRate": 92,
+        "rating": 4.5
+      },
+      "settings": {
+        "canAddProducts": true,
+        "canEditProducts": true,
+        "canDeleteProducts": true,
+        "canViewRfqs": true,
+        "notificationEmail": true,
+        "notificationSms": false
+      },
+      "metadata": {
+        "createdAt": "2024-01-10T08:30:00Z",
+        "lastLogin": "2024-12-25T14:20:00Z",
+        "updatedAt": "2024-12-25T14:20:00Z"
+      }
+    }
+  ]
+}

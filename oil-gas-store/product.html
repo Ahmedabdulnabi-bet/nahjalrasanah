@@ -1,11 +1,13 @@
 <!doctype html>
 <html lang="en" dir="ltr">
   <head>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Nahj Al-Rasanah | Oil &amp; Gas Supplies</title>
     <link rel="icon" type="image/png" href="assets/images/logo-store.png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="assets/css/styles.css">
   </head>
   <body data-page="product">
@@ -31,13 +33,10 @@
           </ul>
           
           <a href="admin.html" id="auth-button" class="btn btn-outline-light btn-sm ms-lg-3 d-flex align-items-center gap-1">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-person-fill-lock" viewBox="0 0 16 16">
-                  <path d="M11 5a3 3 0 1 1-6 0 3 3 0 0 1 6 0m-9 8c0 1 1 1 1 1h5v-1a2 2 0 0 1 2-2h1c.5 0 .5.5.5 1v.5a.5.5 0 0 1-1 0V13h-1v-.5a3.5 3.5 0 0 0-3.5-3.5h-1A3.5 3.5 0 0 0 2 12.5z"/>
-                  <path fill-rule="evenodd" d="M12.5 1a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.294.451l-2.003.73A3.5 3.5 0 0 1 10 9a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a2.5 2.5 0 0 0 2.447-1.93l.317-.116A.5.5 0 0 1 13 4.5v-3a.5.5 0 0 1 .5-.5m.5 1.5v3.197l-2.003-.73A3.5 3.5 0 0 1 10 9a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a2.5 2.5 0 0 0 2.447-1.93l.317-.116A.5.5 0 0 1 13 4.5v-3a.5.5 0 0 1 .5-.5"/>
-              </svg>
+              <i class="bi bi-person-fill-lock"></i>
               <span id="auth-button-text">Admin Login</span>
           </a>
-          </div>
+        </div>
       </div>
     </nav>
 
@@ -47,59 +46,13 @@
           <ol class="breadcrumb small">
             <li class="breadcrumb-item"><a href="index.html">Home</a></li>
             <li class="breadcrumb-item"><a href="index.html#catalog">Catalog</a></li>
-            <li class="breadcrumb-item active" aria-current="page" id="breadcrumb-product-name">Product Details</li>
+            <li class="breadcrumb-item active" aria-current="page">Product Details</li>
           </ol>
         </nav>
-        <div id="product-not-found" class="alert alert-warning d-none" role="alert">
-          The requested product could not be found. Please go back to the <a href="index.html#catalog" class="alert-link">catalog</a>.
-        </div>
-        <div id="product-details" class="row gy-4 d-none">
-          <div class="col-lg-5">
-            <div class="card shadow-sm mb-3">
-              <div class="card-body">
-                <div class="text-center mb-3">
-                  <img id="product-image-main" src="assets/images/product-placeholder.png" alt="Product image" class="img-fluid rounded border" style="max-height:260px;object-fit:contain;">
-                </div>
-                <div id="product-gallery" class="d-flex flex-wrap gap-2 justify-content-center small"></div>
-              </div>
-            </div>
-            <div class="card shadow-sm">
-              <div class="card-body">
-                <h6 class="fw-semibold mb-2">Media &amp; Documents</h6>
-                <ul class="small mb-0 lh-lg" id="product-media-list"></ul>
-              </div>
-            </div>
-          </div>
-          <div class="col-lg-7">
-            <h1 id="product-name" class="h4 fw-bold mb-1">Product name</h1>
-            <p id="product-segment" class="small text-muted mb-1"></p>
-            <p class="small text-muted mb-2">
-              <span class="badge bg-secondary me-1" id="product-category-badge">Category</span>
-              Part No: <span id="product-partnumber"></span>
-            </p>
-            <p id="product-short" class="mb-2"></p>
-            <p id="product-long" class="mb-3 small"></p>
-            <div class="mb-3">
-              <button class="btn btn-primary me-2" id="btn-add-to-rfq">Add to RFQ Basket</button>
-              <a href="rfq.html" class="btn btn-outline-secondary">View RFQ Basket</a>
-            </div>
-            <div class="card shadow-sm">
-              <div class="card-body">
-                <h6 class="fw-semibold mb-3">Technical Specification (Key Data)</h6>
-                <div class="table-responsive">
-                  <table class="table table-sm align-middle mb-0">
-                    <tbody id="product-specs-body"></tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-            <div class="mt-3 small text-muted">
-              If you require a full technical datasheet, inspection &amp; test plan (ITP) or compliance table against a project specification, please include the project reference in your RFQ.
-            </div>
-          </div>
-        </div>
+        <div id="product-details"></div>
       </div>
     </main>
+
     <footer class="bg-dark text-light mt-5 pt-4 pb-3">
       <div class="container">
         <div class="row gy-3">
@@ -133,5 +86,6 @@
     </footer>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script type="module" src="assets/js/app.js"></script>
+    <script type="module" src="assets/js/auth-nav.js"></script>
   </body>
 </html>

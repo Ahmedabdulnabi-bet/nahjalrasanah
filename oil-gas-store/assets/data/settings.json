@@ -1,0 +1,74 @@
+// assets/data/settings.json
+{
+  "site": {
+    "name": "Nahj Al-Rasanah",
+    "nameAr": "نهج الرسالة",
+    "tagline": "Oil & Gas Equipment & Spare Parts",
+    "taglineAr": "معدات النفط والغاز وقطع الغيار",
+    "url": "https://www.nahjalrasanah.com/oil-gas-store",
+    "language": "en",
+    "rtl": false,
+    "defaultCurrency": "USD",
+    "availableCurrencies": ["USD", "IQD", "EUR"],
+    "timezone": "Asia/Baghdad"
+  },
+  "contact": {
+    "email": "sales@nahjalrasanah.com",
+    "phone": "+964 784 349 9555",
+    "whatsapp": "+9647843499555",
+    "address": "Badra District, Wasit Governorate, Republic of Iraq",
+    "addressAr": "قضاء بدرة، محافظة واسط، جمهورية العراق",
+    "workingHours": "Sunday - Thursday: 8:00 AM - 5:00 PM",
+    "workingHoursAr": "الأحد - الخميس: ٨ صباحاً - ٥ مساءً"
+  },
+  "business": {
+    "companyName": "Nahj Al-Rasanah for General Trading, General Contracting, Light Industries, Training and Development, Agricultural Investment, Services, and Public Transportation LLC",
+    "companyNameAr": "شركة نهج الرسالة للتجارة العامة والمقاولات العامة والصناعات الخفيفة والتدريب والتطوير والاستثمار الزراعي والخدمات والنقل العام (ذ.م.م)",
+    "taxNumber": "123456789",
+    "commercialRegister": "CR-2024-001"
+  },
+  "features": {
+    "rfqEnabled": true,
+    "vendorDashboard": true,
+    "multilingual": false,
+    "offlineMode": true,
+    "pwaEnabled": true,
+    "analytics": true,
+    "seoOptimized": true
+  },
+  "social": {
+    "facebook": "https://facebook.com/nahjalrasanah",
+    "linkedin": "https://linkedin.com/company/nahj-al-rasanah",
+    "instagram": "https://instagram.com/nahj.alrasanah",
+    "youtube": "https://youtube.com/@nahjalrasanah"
+  },
+  "api": {
+    "firebase": {
+      "apiKey": "AIzaSyAtcnouNdsILUvA9EMvrHMhoaWXkMqTMx0",
+      "authDomain": "nahj-oilgas-store.firebaseapp.com",
+      "projectId": "nahj-oilgas-store"
+    },
+    "endpoints": {
+      "products": "/api/products",
+      "rfqs": "/api/rfqs",
+      "vendors": "/api/vendors"
+    }
+  },
+  "seo": {
+    "defaultTitle": "Nahj Al-Rasanah | Oil & Gas Equipment Supplier in Iraq",
+    "defaultDescription": "Premium Oil & Gas Equipment, Valves, Instrumentation, and Spare Parts Supplier in Iraq. Serving operators, EPC contractors, and service companies.",
+    "keywords": ["oil and gas", "equipment", "valves", "instrumentation", "Iraq", "supplier"],
+    "ogImage": "/assets/images/og-default.jpg",
+    "twitterCard": "summary_large_image"
+  },
+  "pagination": {
+    "productsPerPage": 12,
+    "rfqsPerPage": 10,
+    "vendorsPerPage": 20
+  },
+  "cache": {
+    "ttlProducts": 3600,
+    "ttlCategories": 86400,
+    "ttlSettings": 604800
+  }
+}

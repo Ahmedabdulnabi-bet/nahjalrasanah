@@ -1,129 +1,87 @@
-[
-  {
-    "id": "valve-gate-api600-6-600",
-    "category": "Valves & Actuators",
-    "name": "API 600 Gate Valve 6\" Class 600",
-    "partNumber": "GATE-API600-6-600",
-    "segment": "Oil & Gas \u2013 Process Piping",
-    "brand": "OEM / Approved Manufacturer",
-    "origin": "EU / Asia",
-    "shortDescription": "Carbon steel bolted-bonnet gate valve for high-pressure oil & gas service.",
-    "longDescription": "Rugged OS&Y gate valve designed in accordance with API 600 and ASME B16.34 for onshore oil & gas facilities, pipelines and process plants. Suitable for crude oil, produced water and utility services where tight shut-off and long-term reliability are critical.",
-    "image": "assets/images/product-placeholder.png",
-    "gallery": [
-      "assets/images/product-placeholder.png"
-    ],
-    "datasheet": "assets/datasheets/sample-datasheet.pdf",
-    "video": "assets/videos/sample-product.mp4",
-    "tags": [
-      "API 600",
-      "Gate Valve",
-      "Class 600",
-      "WCB",
-      "RF Flanged"
-    ],
-    "specs": {
-      "Design Standard": "API 600 / ASME B16.34",
-      "Size Range": "6\" (DN150)",
-      "Pressure Class": "Class 600",
-      "Body Material": "ASTM A216 WCB",
-      "Trim": "13Cr / STL Seat",
-      "End Connections": "RF flanged to ASME B16.5",
-      "Construction": "Outside Screw & Yoke (OS&Y), rising stem, bolted bonnet",
-      "Service": "Crude oil, produced water, gas, utility lines"
-    }
+// assets/data/products.json
+{
+  "metadata": {
+    "version": "2.0.0",
+    "lastUpdated": "2024-12-27T10:30:00Z",
+    "totalProducts": 150
   },
-  {
-    "id": "control-valve-globe-2-300",
-    "category": "Valves & Actuators",
-    "name": "Globe Control Valve 2\" Class 300 \u2013 Pneumatic Actuator",
-    "partNumber": "CTRL-GLOBE-2-300",
-    "segment": "Oil & Gas \u2013 Process Control",
-    "brand": "OEM / Approved Manufacturer",
-    "origin": "EU / Asia",
-    "shortDescription": "Two-inch globe control valve with pneumatic actuator, suitable for flow and pressure control loops.",
-    "longDescription": "Compact control valve assembly for oil & gas process applications, supplied with positioner and accessories as per project specification. Available with different trim characteristics (EQ%, linear) and materials for wide range of media and temperatures.",
-    "image": "assets/images/product-placeholder.png",
-    "gallery": [
-      "assets/images/product-placeholder.png"
-    ],
-    "datasheet": "assets/datasheets/sample-datasheet.pdf",
-    "video": "",
-    "tags": [
-      "Control Valve",
-      "Globe",
-      "Pneumatic",
-      "Positioner"
-    ],
-    "specs": {
-      "Valve Type": "Globe, single-seated",
-      "Size": "2\" (DN50)",
-      "Pressure Class": "Class 300",
-      "Body Material": "WCB / CF8M (options)",
-      "Actuator": "Pneumatic diaphragm, spring return",
-      "Positioner": "4\u201320 mA / HART (optional)",
-      "End Connections": "Flanged RF / RTJ as specified"
+  "categories": [
+    {
+      "id": "valves",
+      "name": "Valves & Actuators",
+      "slug": "valves-actuators",
+      "description": "Gate valves, globe valves, check valves, ball valves, and actuators",
+      "icon": "bi-valve",
+      "productCount": 45
+    },
+    {
+      "id": "instrumentation",
+      "name": "Instrumentation & Control",
+      "slug": "instrumentation-control",
+      "description": "Pressure transmitters, temperature sensors, flow meters, control systems",
+      "icon": "bi-speedometer",
+      "productCount": 38
     }
-  },
-  {
-    "id": "instrument-pt-0-100bar-hart",
-    "category": "Instrumentation & Control",
-    "name": "Pressure Transmitter 0\u2013100 bar, 4\u201320 mA + HART",
-    "partNumber": "PT-100BAR-HART",
-    "segment": "Oil & Gas \u2013 Field Instrumentation",
-    "brand": "OEM / Approved Manufacturer",
-    "origin": "EU / Asia",
-    "shortDescription": "Smart pressure transmitter with stainless steel wetted parts for harsh oil & gas environments.",
-    "longDescription": "Field-proven pressure transmitter suitable for wellhead, process and utility services. Provides stable 4\u201320 mA + HART signal for integration with DCS / PLC systems and supports remote configuration via hand-held communicator.",
-    "image": "assets/images/product-placeholder.png",
-    "gallery": [
-      "assets/images/product-placeholder.png"
-    ],
-    "datasheet": "assets/datasheets/sample-datasheet.pdf",
-    "video": "",
-    "tags": [
-      "Pressure Transmitter",
-      "HART",
-      "4\u201320 mA"
-    ],
-    "specs": {
-      "Measuring Range": "0\u2013100 bar (other ranges on request)",
-      "Output Signal": "4\u201320 mA + HART",
-      "Accuracy": "\u00b10.1% of span (typical)",
-      "Wetted Parts": "SS316L",
-      "Process Connection": "1/2\" NPT(M) / flanged options",
-      "Enclosure": "Aluminium or SS, IP66 / IP67",
-      "Explosion Protection": "Ex-proof options available"
+  ],
+  "products": [
+    {
+      "id": "GV-API600-6",
+      "name": "API 600 Gate Valve, Class 600",
+      "partNumber": "GV-API600-6",
+      "category": "valves",
+      "categoryName": "Valves & Actuators",
+      "segment": "Oil & Gas – Process Piping",
+      "shortDescription": "API 600 gate valve with rising stem, class 600 rating",
+      "longDescription": "Full bore gate valve designed per API 600 specification for oil and gas applications. Suitable for high-pressure services up to Class 600.",
+      "specs": [
+        "Design Standard: API 600 / ASME B16.34",
+        "Size Range: 6\" (DN150)",
+        "Pressure Class: Class 600 (PN100)",
+        "Material: Carbon Steel A216 WCB",
+        "Trim: 13% Cr / 13% Cr",
+        "End Connection: RF Flange ASME B16.5",
+        "Temperature Range: -29°C to 425°C"
+      ],
+      "tags": ["API 600", "Gate Valve", "Class 600", "Carbon Steel", "Flanged"],
+      "brand": "ValveMaster",
+      "origin": "EU",
+      "vendorInfo": {
+        "vendorId": "vendor-001",
+        "vendorName": "Technical Equipment Co.",
+        "vendorType": "manufacturer"
+      },
+      "contactInfo": {
+        "primaryContact": "sales@nahjalrasanah.com",
+        "phone": "+964 784 349 9555",
+        "responseTime": "24-48 hours"
+      },
+      "pricing": {
+        "currency": "USD",
+        "unitPrice": 1250.00,
+        "moq": 1,
+        "leadTime": "4-6 weeks"
+      },
+      "assets": {
+        "image": "assets/images/products/valve-api600-6.jpg",
+        "datasheet": "assets/datasheets/valve-api600-6.pdf",
+        "video": "assets/videos/valve-api600-6.mp4",
+        "gallery": [
+          "assets/images/products/valve-api600-6-1.jpg",
+          "assets/images/products/valve-api600-6-2.jpg"
+        ]
+      },
+      "status": {
+        "isActive": true,
+        "isFeatured": true,
+        "stockStatus": "in-stock",
+        "createdAt": "2024-01-15",
+        "updatedAt": "2024-12-20"
+      },
+      "seo": {
+        "title": "API 600 Gate Valve Class 600 | Nahj Al-Rasanah",
+        "description": "High-quality API 600 gate valve class 600 for oil and gas applications. Carbon steel construction with flanged connections.",
+        "keywords": ["gate valve", "API 600", "class 600", "oil and gas", "valves"]
+      }
     }
-  },
-  {
-    "id": "safety-scba-300bar-6-8l",
-    "category": "Safety & Firefighting",
-    "name": "SCBA Set \u2013 300 bar, 6.8 L Composite Cylinder",
-    "partNumber": "SCBA-300BAR-6.8L",
-    "segment": "Oil & Gas \u2013 Emergency Response",
-    "brand": "OEM / Approved Manufacturer",
-    "origin": "EU / Asia",
-    "shortDescription": "Self-contained breathing apparatus compliant with EN standards for firefighting teams in oil & gas fields.",
-    "longDescription": "Complete SCBA set including full face mask, demand valve, composite cylinder and ergonomic back plate harness. Suitable for firefighting and emergency response teams in production facilities, tank farms and pipelines.",
-    "image": "assets/images/product-placeholder.png",
-    "gallery": [
-      "assets/images/product-placeholder.png"
-    ],
-    "datasheet": "assets/datasheets/sample-datasheet.pdf",
-    "video": "assets/videos/sample-product.mp4",
-    "tags": [
-      "SCBA",
-      "Firefighting",
-      "Emergency Response"
-    ],
-    "specs": {
-      "Working Pressure": "300 bar",
-      "Cylinder Volume": "6.8 L composite",
-      "Standard": "EN 137 or equivalent",
-      "Mask": "Full face panoramic, wide field of vision",
-      "Harness": "Ergonomic, adjustable, flame resistant",
-      "Usage": "Firefighting, rescue, confined space entry"
-    }
-  }
-]
+  ]
+}

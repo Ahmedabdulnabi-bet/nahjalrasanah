@@ -1,0 +1,43 @@
+// assets/data/categories.json
+{
+  "categories": [
+    {
+      "id": "valves-actuators",
+      "name": "Valves & Actuators",
+      "nameAr": "صمامات ومشغلات",
+      "slug": "valves-actuators",
+      "description": "Industrial valves and actuators for oil, gas, and petrochemical applications",
+      "descriptionAr": "الصمامات والمشغلات الصناعية لتطبيقات النفط والغاز والبتروكيماويات",
+      "icon": "bi-valve",
+      "color": "#0d6efd",
+      "subcategories": [
+        { "id": "gate-valves", "name": "Gate Valves", "nameAr": "صمامات بوابة" },
+        { "id": "globe-valves", "name": "Globe Valves", "nameAr": "صمامات كروية" },
+        { "id": "check-valves", "name": "Check Valves", "nameAr": "صمامات فحص" },
+        { "id": "ball-valves", "name": "Ball Valves", "nameAr": "صمامات كرة" }
+      ],
+      "specifications": ["API", "ASME", "ANSI", "DIN"],
+      "vendorsCount": 12,
+      "productsCount": 45
+    },
+    {
+      "id": "instrumentation-control",
+      "name": "Instrumentation & Control",
+      "nameAr": "أدوات القياس والتحكم",
+      "slug": "instrumentation-control",
+      "description": "Measurement and control instruments for process industries",
+      "descriptionAr": "أدوات القياس والتحكم للصناعات الإجرائية",
+      "icon": "bi-speedometer",
+      "color": "#198754",
+      "subcategories": [
+        { "id": "pressure", "name": "Pressure Instruments", "nameAr": "أدوات الضغط" },
+        { "id": "temperature", "name": "Temperature Instruments", "nameAr": "أدوات الحرارة" },
+        { "id": "flow", "name": "Flow Meters", "nameAr": "عدادات التدفق" },
+        { "id": "control-valves", "name": "Control Valves", "nameAr": "صمامات التحكم" }
+      ],
+      "specifications": ["IEC", "ISA", "NEMA", "ATEX"],
+      "vendorsCount": 8,
+      "productsCount": 38
+    }
+  ]
+}
