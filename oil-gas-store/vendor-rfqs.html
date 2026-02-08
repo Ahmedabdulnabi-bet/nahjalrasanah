@@ -10,7 +10,6 @@
     <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body data-page="vendor-rfqs">
-    <!-- نفس navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm sticky-top">
         <div class="container">
             <a class="navbar-brand d-flex align-items-center gap-2" href="index.html">
@@ -47,7 +46,7 @@
                     <div class="card border-primary">
                         <div class="card-body">
                             <h6 class="card-subtitle mb-2 text-muted">Total RFQs</h6>
-                            <h3 class="card-title mb-0" id="total-rfqs">0</h3>
+                            <h3 class="card-title mb-0 stats-number" id="total-rfqs">0</h3>
                         </div>
                     </div>
                 </div>
@@ -55,7 +54,7 @@
                     <div class="card border-warning">
                         <div class="card-body">
                             <h6 class="card-subtitle mb-2 text-muted">Pending</h6>
-                            <h3 class="card-title mb-0" id="pending-rfqs">0</h3>
+                            <h3 class="card-title mb-0 stats-number" id="pending-rfqs">0</h3>
                         </div>
                     </div>
                 </div>
@@ -63,7 +62,7 @@
                     <div class="card border-info">
                         <div class="card-body">
                             <h6 class="card-subtitle mb-2 text-muted">This Month</h6>
-                            <h3 class="card-title mb-0" id="month-rfqs">0</h3>
+                            <h3 class="card-title mb-0 stats-number" id="month-rfqs">0</h3>
                         </div>
                     </div>
                 </div>
@@ -71,7 +70,7 @@
                     <div class="card border-success">
                         <div class="card-body">
                             <h6 class="card-subtitle mb-2 text-muted">Responded</h6>
-                            <h3 class="card-title mb-0" id="responded-rfqs">0</h3>
+                            <h3 class="card-title mb-0 stats-number" id="responded-rfqs">0</h3>
                         </div>
                     </div>
                 </div>
@@ -99,7 +98,12 @@
                                 </tr>
                             </thead>
                             <tbody id="rfqs-table">
-                                <!-- RFQs will load here -->
+                                <tr id="loading-row">
+                                    <td colspan="6" class="text-center py-5">
+                                        <div class="spinner-border text-primary"></div>
+                                        <p class="mt-2 text-muted">Loading RFQs...</p>
+                                    </td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -153,6 +157,411 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script type="module" src="assets/js/vendor-rfqs.js"></script>
+    
+    <script type="module">
+        import { firebaseConfig, COLLECTIONS } from './assets/js/firebase-config.js';
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+        import { 
+            getAuth, 
+            onAuthStateChanged, 
+            signOut 
+        } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
+        import { 
+            getFirestore,
+            collection,
+            getDocs,
+            deleteDoc,
+            doc,
+            query,
+            where,
+            orderBy,
+            limit
+        } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('RFQs page loaded');
+            
+            // Set copyright year
+            const yearSpan = document.getElementById('year');
+            if (yearSpan) {
+                yearSpan.textContent = new Date().getFullYear();
+            }
+            
+            // Global variables
+            let auth, db;
+            let currentUser = null;
+            let vendorProducts = [];
+            let vendorRfqs = [];
+            let selectedRfqId = null;
+            
+            // Initialize Firebase
+            try {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                console.log('✅ RFQs Firebase initialized');
+            } catch (error) {
+                console.error('❌ Firebase init error:', error);
+                showError('System initialization failed');
+                return;
+            }
+            
+            // Setup event listeners
+            function setupEventListeners() {
+                // Refresh button
+                const refreshBtn = document.getElementById('refresh-btn');
+                if (refreshBtn) {
+                    refreshBtn.addEventListener('click', loadVendorData);
+                }
+                
+                // Logout button
+                const logoutBtn = document.getElementById('logout-btn');
+                if (logoutBtn) {
+                    logoutBtn.addEventListener('click', async () => {
+                        try {
+                            await signOut(auth);
+                            window.location.href = 'index.html';
+                        } catch (error) {
+                            console.error('Logout error:', error);
+                        }
+                    });
+                }
+                
+                // Delete RFQ button
+                const deleteBtn = document.getElementById('delete-rfq-btn');
+                if (deleteBtn) {
+                    deleteBtn.addEventListener('click', deleteSelectedRfq);
+                }
+            }
+            
+            // Auth state listener
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    console.log('User authenticated:', user.email);
+                    currentUser = user;
+                    setupEventListeners();
+                    await loadVendorData();
+                } else {
+                    console.log('No user, redirecting...');
+                    window.location.href = 'vendor-login.html';
+                }
+            });
+            
+            async function loadVendorData() {
+                if (!currentUser) return;
+                
+                console.log('Loading vendor RFQs data...');
+                showLoading(true);
+                
+                try {
+                    // Load vendor's products
+                    const productsSnapshot = await getDocs(
+                        query(
+                            collection(db, COLLECTIONS.PRODUCTS),
+                            where('vendorId', '==', currentUser.uid)
+                        )
+                    );
+                    
+                    vendorProducts = [];
+                    productsSnapshot.forEach(doc => {
+                        vendorProducts.push({
+                            id: doc.id,
+                            ...doc.data()
+                        });
+                    });
+                    
+                    console.log('Vendor products:', vendorProducts.length);
+                    
+                    // Load all RFQs
+                    const rfqsSnapshot = await getDocs(
+                        query(
+                            collection(db, COLLECTIONS.RFQS),
+                            orderBy('createdAt', 'desc'),
+                            limit(100)
+                        )
+                    );
+                    
+                    const allRfqs = [];
+                    rfqsSnapshot.forEach(doc => {
+                        allRfqs.push({
+                            id: doc.id,
+                            ...doc.data()
+                        });
+                    });
+                    
+                    // Filter RFQs that contain vendor's products
+                    vendorRfqs = allRfqs.filter(rfq => {
+                        if (!rfq.items || !Array.isArray(rfq.items)) return false;
+                        
+                        return rfq.items.some(item => 
+                            vendorProducts.some(product => product.id === item.id)
+                        );
+                    });
+                    
+                    console.log('Vendor RFQs:', vendorRfqs.length);
+                    
+                    renderRfqsTable();
+                    updateStats();
+                    
+                } catch (error) {
+                    console.error('❌ Error loading vendor data:', error);
+                    showMessage('Error loading data: ' + error.message, 'danger');
+                } finally {
+                    showLoading(false);
+                }
+            }
+            
+            function renderRfqsTable() {
+                const rfqsTable = document.getElementById('rfqs-table');
+                const noRfqsDiv = document.getElementById('no-rfqs');
+                const loadingRow = document.getElementById('loading-row');
+                
+                if (!rfqsTable) return;
+                
+                // Hide loading row
+                if (loadingRow) loadingRow.style.display = 'none';
+                
+                if (vendorRfqs.length === 0) {
+                    rfqsTable.innerHTML = '';
+                    if (noRfqsDiv) noRfqsDiv.classList.remove('d-none');
+                    return;
+                }
+                
+                if (noRfqsDiv) noRfqsDiv.classList.add('d-none');
+                
+                let html = '';
+                vendorRfqs.forEach(rfq => {
+                    // Get vendor's products from this RFQ
+                    const vendorItems = rfq.items.filter(item => 
+                        vendorProducts.some(product => product.id === item.id)
+                    );
+                    
+                    const totalQty = vendorItems.reduce((sum, item) => sum + (item.qty || 1), 0);
+                    const date = rfq.createdAt?.toDate ? 
+                        rfq.createdAt.toDate().toLocaleDateString() : 'N/A';
+                    
+                    html += `
+                        <tr>
+                            <td>
+                                <strong>${rfq.company || 'N/A'}</strong><br>
+                                <small class="text-muted">${rfq.project || ''}</small>
+                            </td>
+                            <td>
+                                ${rfq.contact || 'N/A'}<br>
+                                <small class="text-muted">${rfq.email || ''}</small>
+                            </td>
+                            <td>
+                                ${vendorItems.length} product(s)<br>
+                                <small class="text-muted">${totalQty} units</small>
+                            </td>
+                            <td>${date}</td>
+                            <td>
+                                <span class="badge ${getStatusBadgeClass(rfq.status)}">
+                                    ${rfq.status || 'pending'}
+                                </span>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary view-btn" data-id="${rfq.id}">
+                                    <i class="bi bi-eye"></i> View
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                rfqsTable.innerHTML = html;
+                
+                // Add event listeners to view buttons
+                document.querySelectorAll('.view-btn').forEach(btn => {
+                    btn.addEventListener('click', function(e) {
+                        const rfqId = this.getAttribute('data-id');
+                        viewRfqDetails(rfqId);
+                    });
+                });
+            }
+            
+            function getStatusBadgeClass(status) {
+                switch(status) {
+                    case 'pending': return 'bg-warning';
+                    case 'reviewed': return 'bg-info';
+                    case 'responded': return 'bg-success';
+                    case 'closed': return 'bg-secondary';
+                    case 'cancelled': return 'bg-danger';
+                    default: return 'bg-secondary';
+                }
+            }
+            
+            function updateStats() {
+                const total = vendorRfqs.length;
+                const pending = vendorRfqs.filter(r => r.status === 'pending').length;
+                const responded = vendorRfqs.filter(r => r.status === 'responded' || r.status === 'closed').length;
+                
+                // Count this month's RFQs
+                const now = new Date();
+                const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+                const monthCount = vendorRfqs.filter(rfq => {
+                    if (!rfq.createdAt?.toDate) return false;
+                    const rfqDate = rfq.createdAt.toDate();
+                    return rfqDate >= firstDayOfMonth;
+                }).length;
+                
+                // Update DOM
+                document.getElementById('total-rfqs').textContent = total;
+                document.getElementById('pending-rfqs').textContent = pending;
+                document.getElementById('month-rfqs').textContent = monthCount;
+                document.getElementById('responded-rfqs').textContent = responded;
+            }
+            
+            function viewRfqDetails(rfqId) {
+                const rfq = vendorRfqs.find(r => r.id === rfqId);
+                if (!rfq) return;
+                
+                // Get vendor's products from this RFQ
+                const vendorItems = rfq.items.filter(item => 
+                    vendorProducts.some(product => product.id === item.id)
+                );
+                
+                // Format date
+                const date = rfq.createdAt?.toDate ? 
+                    rfq.createdAt.toDate().toLocaleString() : 'N/A';
+                
+                // Build details HTML
+                let detailsHtml = `
+                    <h6>Company Information</h6>
+                    <p><strong>Company:</strong> ${rfq.company || 'N/A'}</p>
+                    <p><strong>Contact:</strong> ${rfq.contact || 'N/A'}</p>
+                    <p><strong>Email:</strong> ${rfq.email || 'N/A'}</p>
+                    <p><strong>Phone:</strong> ${rfq.phone || 'N/A'}</p>
+                    
+                    <h6 class="mt-4">Project Details</h6>
+                    <p><strong>Project:</strong> ${rfq.project || 'Not specified'}</p>
+                    <p><strong>Delivery:</strong> ${rfq.delivery || 'Not specified'}</p>
+                    <p><strong>Submitted:</strong> ${date}</p>
+                    <p><strong>Status:</strong> <span class="badge ${getStatusBadgeClass(rfq.status)}">${rfq.status || 'pending'}</span></p>
+                    
+                    <h6 class="mt-4">Requested Products (Your Products)</h6>
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Part No</th>
+                                <th>Qty</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                vendorItems.forEach(item => {
+                    const product = vendorProducts.find(p => p.id === item.id) || {};
+                    detailsHtml += `
+                        <tr>
+                            <td>${product.name || item.name || 'Unknown'}</td>
+                            <td>${product.partNumber || item.partNumber || 'N/A'}</td>
+                            <td>${item.qty || 1}</td>
+                        </tr>
+                    `;
+                });
+                
+                detailsHtml += `
+                        </tbody>
+                    </table>
+                `;
+                
+                if (rfq.notes) {
+                    detailsHtml += `
+                        <h6 class="mt-4">Additional Notes</h6>
+                        <div class="bg-light p-3 rounded">
+                            ${rfq.notes}
+                        </div>
+                    `;
+                }
+                
+                // Set details content
+                const detailsEl = document.getElementById('rfq-details');
+                if (detailsEl) {
+                    detailsEl.innerHTML = detailsHtml;
+                }
+                
+                // Store RFQ ID for delete
+                selectedRfqId = rfqId;
+                
+                // Show modal
+                const modal = new bootstrap.Modal(document.getElementById('rfqModal'));
+                modal.show();
+            }
+            
+            async function deleteSelectedRfq() {
+                if (!selectedRfqId || !confirm('Are you sure you want to delete this RFQ?')) return;
+                
+                try {
+                    // Delete from Firestore
+                    await deleteDoc(doc(db, COLLECTIONS.RFQS, selectedRfqId));
+                    
+                    // Remove from local array
+                    vendorRfqs = vendorRfqs.filter(r => r.id !== selectedRfqId);
+                    
+                    // Update UI
+                    renderRfqsTable();
+                    updateStats();
+                    
+                    // Close modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('rfqModal'));
+                    if (modal) modal.hide();
+                    
+                    showMessage('✅ RFQ deleted successfully', 'success');
+                    
+                } catch (error) {
+                    console.error('❌ Error deleting RFQ:', error);
+                    showMessage('Error deleting RFQ: ' + error.message, 'danger');
+                }
+            }
+            
+            function showLoading(show) {
+                const refreshBtn = document.getElementById('refresh-btn');
+                const loadingRow = document.getElementById('loading-row');
+                
+                if (refreshBtn) refreshBtn.disabled = show;
+                if (loadingRow && show) loadingRow.style.display = 'table-row';
+            }
+            
+            function showMessage(text, type) {
+                const alertDiv = document.createElement('div');
+                alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+                alertDiv.style.cssText = `
+                    top: 20px;
+                    right: 20px;
+                    z-index: 9999;
+                    min-width: 300px;
+                `;
+                alertDiv.innerHTML = `
+                    ${type === 'success' ? '✅' : '❌'} ${text}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                
+                document.body.appendChild(alertDiv);
+                
+                setTimeout(() => {
+                    if (alertDiv.parentNode) {
+                        alertDiv.remove();
+                    }
+                }, 3000);
+            }
+            
+            function showError(message) {
+                const container = document.querySelector('.container');
+                if (container) {
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = 'alert alert-danger alert-dismissible fade show mt-3';
+                    alertDiv.innerHTML = `
+                        ${message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    `;
+                    container.insertBefore(alertDiv, container.firstChild);
+                }
+            }
+            
+            console.log('🚀 Vendor RFQs Page Initialized');
+        });
+    </script>
 </body>
 </html>

@@ -15,7 +15,8 @@ export const COLLECTIONS = {
   USERS: 'users',
   VENDORS: 'vendors',
   RFQS: 'rfqs',
-  ARTICLES: 'articles'
+  ANALYTICS_PAGEVIEWS: 'analytics_pageviews',
+  ANALYTICS_EVENTS: 'analytics_events'
 };
 
 // User roles
@@ -29,6 +30,7 @@ export const USER_ROLES = {
 export const RFQ_STATUS = {
   PENDING: 'pending',
   REVIEWED: 'reviewed',
-  QUOTED: 'quoted',
-  CLOSED: 'closed'
+  RESPONDED: 'responded',
+  CLOSED: 'closed',
+  CANCELLED: 'cancelled'
 };

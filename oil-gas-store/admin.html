@@ -26,7 +26,6 @@
           <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
             <li class="nav-item"><a class="nav-link" href="index.html">Catalog</a></li>
             <li class="nav-item"><a class="nav-link" href="rfq.html">RFQ Basket</a></li>
-            <!-- Added RFQs link for vendors and admins to access incoming RFQs -->
             <li class="nav-item"><a class="nav-link" href="rfqs.html">RFQs</a></li>
             <li class="nav-item"><a class="nav-link" href="https://www.nahjalrasanah.com" target="_blank" rel="noopener">Main Website</a></li>
             <li class="nav-item ms-lg-3">
@@ -186,7 +185,14 @@
                         <th style="width: 120px;">Actions</th>
                       </tr>
                     </thead>
-                    <tbody id="products-table-body"></tbody>
+                    <tbody id="products-table-body">
+                      <tr>
+                        <td colspan="5" class="text-center py-4">
+                          <div class="spinner-border spinner-border-sm"></div>
+                          <p class="mt-2 text-muted">Loading products...</p>
+                        </td>
+                      </tr>
+                    </tbody>
                   </table>
                 </div>
                 <div id="products-table-status" class="small text-muted mt-2"></div>
@@ -196,6 +202,7 @@
         </div>
       </section>
     </main>
+    
     <footer class="bg-dark text-light mt-5 pt-4 pb-3">
       <div class="container">
         <div class="row gy-3">
@@ -227,8 +234,554 @@
         <p class="small text-center mb-0">&copy; <span id="year"></span> Nahj Al-Rasanah LLC. All rights reserved.</p>
       </div>
     </footer>
+    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script type="module" src="assets/js/admin.js"></script>
-    <script type="module" src="assets/js/auth-nav.js"></script>
+    
+    <script type="module">
+      import { firebaseConfig, COLLECTIONS, USER_ROLES } from './assets/js/firebase-config.js';
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+      import { 
+        getAuth, 
+        signInWithEmailAndPassword, 
+        signOut, 
+        onAuthStateChanged 
+      } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
+      import { 
+        getFirestore,
+        collection,
+        getDocs,
+        addDoc,
+        updateDoc,
+        deleteDoc,
+        doc,
+        getDoc,
+        query,
+        orderBy,
+        serverTimestamp
+      } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
+      import { 
+        getStorage,
+        ref,
+        uploadBytes,
+        getDownloadURL
+      } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-storage.js";
+      
+      document.addEventListener('DOMContentLoaded', function() {
+        console.log('Admin panel loaded');
+        
+        // Set copyright year
+        const yearSpan = document.getElementById('year');
+        if (yearSpan) {
+          yearSpan.textContent = new Date().getFullYear();
+        }
+        
+        // Initialize Firebase
+        let auth, db, storage;
+        try {
+          const app = initializeApp(firebaseConfig);
+          auth = getAuth(app);
+          db = getFirestore(app);
+          storage = getStorage(app);
+          console.log('✅ Admin Firebase initialized');
+        } catch (error) {
+          console.error('❌ Firebase init error:', error);
+          showError('System initialization failed');
+          return;
+        }
+        
+        // Global variables
+        let currentUser = null;
+        let userRole = null;
+        let products = [];
+        
+        // Check user role
+        async function getUserRole(userId) {
+          try {
+            const userDoc = await getDoc(doc(db, COLLECTIONS.USERS, userId));
+            return userDoc.exists() ? userDoc.data().role : null;
+          } catch (error) {
+            console.error('Error getting user role:', error);
+            return null;
+          }
+        }
+        
+        // Auth state listener
+        onAuthStateChanged(auth, async (user) => {
+          if (user) {
+            console.log('User authenticated:', user.email);
+            currentUser = user;
+            userRole = await getUserRole(user.uid);
+            
+            // Update UI for logged in user
+            const userEmailEl = document.getElementById('current-user-email');
+            const logoutBtn = document.getElementById('logout-btn');
+            
+            if (userEmailEl) {
+              userEmailEl.textContent = user.email;
+              userEmailEl.classList.remove('d-none');
+            }
+            if (logoutBtn) {
+              logoutBtn.classList.remove('d-none');
+            }
+            
+            // Show admin section if user is admin
+            if (userRole === USER_ROLES.ADMIN) {
+              document.getElementById('login-section').classList.add('d-none');
+              document.getElementById('admin-section').classList.remove('d-none');
+              loadProducts();
+              setupEventListeners();
+            } else if (userRole === USER_ROLES.VENDOR) {
+              // Redirect vendors to their dashboard
+              window.location.href = 'vendor-dashboard.html';
+            } else {
+              // Other users stay on login page
+              showLoginError('Admin access required');
+            }
+            
+          } else {
+            // User not logged in
+            document.getElementById('login-section').classList.remove('d-none');
+            document.getElementById('admin-section').classList.add('d-none');
+            
+            const userEmailEl = document.getElementById('current-user-email');
+            const logoutBtn = document.getElementById('logout-btn');
+            
+            if (userEmailEl) userEmailEl.classList.add('d-none');
+            if (logoutBtn) logoutBtn.classList.add('d-none');
+          }
+        });
+        
+        // Setup event listeners
+        function setupEventListeners() {
+          // Login form
+          const loginForm = document.getElementById('login-form');
+          if (loginForm) {
+            loginForm.addEventListener('submit', handleLogin);
+          }
+          
+          // Logout button
+          const logoutBtn = document.getElementById('logout-btn');
+          if (logoutBtn) {
+            logoutBtn.addEventListener('click', async () => {
+              try {
+                await signOut(auth);
+              } catch (error) {
+                console.error('Logout error:', error);
+              }
+            });
+          }
+          
+          // Product form
+          const productForm = document.getElementById('product-form');
+          if (productForm) {
+            productForm.addEventListener('submit', handleProductSubmit);
+          }
+          
+          // Reset form button
+          const resetFormBtn = document.getElementById('reset-form-btn');
+          if (resetFormBtn) {
+            resetFormBtn.addEventListener('click', resetProductForm);
+          }
+          
+          // Refresh products button
+          const refreshProductsBtn = document.getElementById('refresh-products-btn');
+          if (refreshProductsBtn) {
+            refreshProductsBtn.addEventListener('click', loadProducts);
+          }
+        }
+        
+        // Handle login
+        async function handleLogin(e) {
+          e.preventDefault();
+          
+          const email = document.getElementById('login-email').value;
+          const password = document.getElementById('login-password').value;
+          const loginError = document.getElementById('login-error');
+          
+          // Reset error
+          if (loginError) {
+            loginError.classList.add('d-none');
+            loginError.textContent = '';
+          }
+          
+          // Validate
+          if (!email || !password) {
+            showLoginError('Please enter email and password');
+            return;
+          }
+          
+          // Show loading
+          const submitBtn = e.target.querySelector('button[type="submit"]');
+          const originalText = submitBtn.innerHTML;
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Signing in...';
+          
+          try {
+            // Sign in
+            await signInWithEmailAndPassword(auth, email, password);
+            
+          } catch (error) {
+            console.error('Login error:', error);
+            showLoginError(getLoginErrorMessage(error.code));
+          } finally {
+            // Reset button
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+          }
+        }
+        
+        // Load products
+        async function loadProducts() {
+          if (!currentUser || userRole !== USER_ROLES.ADMIN) return;
+          
+          console.log('Loading products...');
+          showLoading(true, 'products');
+          
+          try {
+            const productsQuery = query(
+              collection(db, COLLECTIONS.PRODUCTS),
+              orderBy('createdAt', 'desc')
+            );
+            
+            const snapshot = await getDocs(productsQuery);
+            products = snapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }));
+            
+            renderProductsTable();
+            
+          } catch (error) {
+            console.error('❌ Error loading products:', error);
+            showMessage('Error loading products: ' + error.message, 'danger', 'products-table-status');
+          } finally {
+            showLoading(false, 'products');
+          }
+        }
+        
+        // Render products table
+        function renderProductsTable() {
+          const tableBody = document.getElementById('products-table-body');
+          if (!tableBody) return;
+          
+          if (products.length === 0) {
+            tableBody.innerHTML = `
+              <tr>
+                <td colspan="5" class="text-center py-4 text-muted">
+                  No products found. Add your first product.
+                </td>
+              </tr>
+            `;
+            return;
+          }
+          
+          let html = '';
+          products.forEach(product => {
+            html += `
+              <tr>
+                <td>
+                  <strong>${product.name || 'No Name'}</strong><br>
+                  <small class="text-muted">${product.vendorEmail || ''}</small>
+                </td>
+                <td>${product.partNumber || 'N/A'}</td>
+                <td>${product.category || 'N/A'}</td>
+                <td>
+                  ${product.isActive !== false ? 
+                    '<span class="badge bg-success">Active</span>' : 
+                    '<span class="badge bg-secondary">Inactive</span>'
+                  }
+                </td>
+                <td>
+                  <button class="btn btn-sm btn-outline-primary edit-product-btn" data-id="${product.id}">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-danger delete-product-btn ms-1" data-id="${product.id}">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </td>
+              </tr>
+            `;
+          });
+          
+          tableBody.innerHTML = html;
+          
+          // Add event listeners
+          document.querySelectorAll('.edit-product-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+              const productId = e.target.closest('.edit-product-btn').getAttribute('data-id');
+              editProduct(productId);
+            });
+          });
+          
+          document.querySelectorAll('.delete-product-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+              const productId = e.target.closest('.delete-product-btn').getAttribute('data-id');
+              deleteProduct(productId);
+            });
+          });
+        }
+        
+        // Edit product
+        function editProduct(productId) {
+          const product = products.find(p => p.id === productId);
+          if (!product) return;
+          
+          console.log('Editing product:', productId);
+          
+          // Fill form
+          document.getElementById('product-id').value = product.id;
+          document.getElementById('product-name').value = product.name || '';
+          document.getElementById('product-part-number').value = product.partNumber || '';
+          document.getElementById('product-category').value = product.category || '';
+          document.getElementById('product-segment').value = product.segment || '';
+          document.getElementById('product-brand').value = product.brand || '';
+          document.getElementById('product-origin').value = product.origin || '';
+          document.getElementById('product-short').value = product.shortDescription || '';
+          document.getElementById('product-long').value = product.longDescription || '';
+          document.getElementById('product-tags').value = product.tags ? product.tags.join(', ') : '';
+          document.getElementById('product-specs').value = product.specs ? product.specs.join('\n') : '';
+          document.getElementById('product-active').checked = product.isActive !== false;
+          
+          // Update form title
+          document.getElementById('form-title').textContent = 'Edit Product';
+          document.getElementById('save-product-btn').textContent = 'Update Product';
+          
+          // Scroll to form
+          document.getElementById('product-form').scrollIntoView({ behavior: 'smooth' });
+          
+          showMessage('Product loaded for editing', 'info', 'product-form-status');
+        }
+        
+        // Delete product
+        async function deleteProduct(productId) {
+          if (!confirm('Are you sure you want to delete this product?')) return;
+          
+          try {
+            showLoading(true, 'products');
+            await deleteDoc(doc(db, COLLECTIONS.PRODUCTS, productId));
+            
+            // Remove from local array
+            products = products.filter(p => p.id !== productId);
+            
+            // Update UI
+            renderProductsTable();
+            
+            // Reset form if deleting the product being edited
+            if (document.getElementById('product-id').value === productId) {
+              resetProductForm();
+            }
+            
+            showMessage('✅ Product deleted successfully', 'success', 'products-table-status');
+            
+          } catch (error) {
+            console.error('❌ Error deleting product:', error);
+            showMessage('Error deleting product: ' + error.message, 'danger', 'products-table-status');
+          } finally {
+            showLoading(false, 'products');
+          }
+        }
+        
+        // Handle product submission
+        async function handleProductSubmit(e) {
+          e.preventDefault();
+          console.log('Saving product...');
+          
+          if (!currentUser || userRole !== USER_ROLES.ADMIN) {
+            showMessage('Admin access required', 'danger', 'product-form-status');
+            return;
+          }
+          
+          // Get form data
+          const productId = document.getElementById('product-id').value;
+          const productData = {
+            name: document.getElementById('product-name').value.trim(),
+            partNumber: document.getElementById('product-part-number').value.trim() || null,
+            category: document.getElementById('product-category').value.trim(),
+            segment: document.getElementById('product-segment').value.trim() || null,
+            brand: document.getElementById('product-brand').value.trim() || null,
+            origin: document.getElementById('product-origin').value.trim() || null,
+            shortDescription: document.getElementById('product-short').value.trim() || null,
+            longDescription: document.getElementById('product-long').value.trim() || null,
+            tags: document.getElementById('product-tags').value.trim() ? 
+                  document.getElementById('product-tags').value.split(',').map(tag => tag.trim()) : [],
+            specs: document.getElementById('product-specs').value.trim() ? 
+                   document.getElementById('product-specs').value.split('\n').map(line => line.trim()) : [],
+            isActive: document.getElementById('product-active').checked,
+            updatedAt: serverTimestamp()
+          };
+          
+          // Validate
+          if (!productData.name || !productData.category) {
+            showMessage('Product name and category are required', 'danger', 'product-form-status');
+            return;
+          }
+          
+          try {
+            showLoading(true, 'product-form');
+            
+            // Handle file uploads
+            const imageFile = document.getElementById('product-image').files[0];
+            const datasheetFile = document.getElementById('product-datasheet').files[0];
+            const videoFile = document.getElementById('product-video').files[0];
+            
+            if (imageFile) {
+              try {
+                const imageUrl = await uploadFile(imageFile, 'images');
+                productData.image = imageUrl;
+              } catch (error) {
+                console.warn('Image upload failed:', error);
+              }
+            }
+            
+            if (datasheetFile) {
+              try {
+                const datasheetUrl = await uploadFile(datasheetFile, 'datasheets');
+                productData.datasheet = datasheetUrl;
+              } catch (error) {
+                console.warn('Datasheet upload failed:', error);
+              }
+            }
+            
+            if (videoFile) {
+              try {
+                const videoUrl = await uploadFile(videoFile, 'videos');
+                productData.video = videoUrl;
+              } catch (error) {
+                console.warn('Video upload failed:', error);
+              }
+            }
+            
+            // Save to Firestore
+            if (productId) {
+              // Update existing product
+              await updateDoc(doc(db, COLLECTIONS.PRODUCTS, productId), productData);
+              showMessage('✅ Product updated successfully!', 'success', 'product-form-status');
+            } else {
+              // Add new product
+              productData.createdAt = serverTimestamp();
+              productData.vendorId = currentUser.uid;
+              productData.vendorEmail = currentUser.email;
+              productData.vendorInfo = {
+                vendorId: currentUser.uid,
+                vendorName: 'Nahj Al-Rasanah',
+                vendorType: 'admin'
+              };
+              
+              await addDoc(collection(db, COLLECTIONS.PRODUCTS), productData);
+              showMessage('✅ Product added successfully!', 'success', 'product-form-status');
+              resetProductForm();
+            }
+            
+            // Reload products
+            await loadProducts();
+            
+          } catch (error) {
+            console.error('❌ Error saving product:', error);
+            showMessage('Error saving product: ' + error.message, 'danger', 'product-form-status');
+          } finally {
+            showLoading(false, 'product-form');
+          }
+        }
+        
+        // Upload file
+        async function uploadFile(file, folder) {
+          const fileName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+          const storageRef = ref(storage, `products/admin/${folder}/${fileName}`);
+          
+          await uploadBytes(storageRef, file);
+          return await getDownloadURL(storageRef);
+        }
+        
+        // Reset product form
+        function resetProductForm() {
+          document.getElementById('product-form').reset();
+          document.getElementById('product-id').value = '';
+          document.getElementById('form-title').textContent = 'Add New Product';
+          document.getElementById('save-product-btn').textContent = 'Save Product';
+          document.getElementById('product-active').checked = true;
+        }
+        
+        // Helper functions
+        function showLoading(show, type) {
+          const saveBtn = document.getElementById('save-product-btn');
+          const refreshBtn = document.getElementById('refresh-products-btn');
+          
+          if (type === 'product-form' && saveBtn) {
+            saveBtn.disabled = show;
+            saveBtn.innerHTML = show ? 
+              '<span class="spinner-border spinner-border-sm"></span> Saving...' : 
+              'Save Product';
+          }
+          
+          if (type === 'products' && refreshBtn) {
+            refreshBtn.disabled = show;
+            refreshBtn.innerHTML = show ? 
+              '<span class="spinner-border spinner-border-sm"></span>' : 
+              'Refresh';
+          }
+        }
+        
+        function showMessage(text, type, elementId) {
+          const element = document.getElementById(elementId);
+          if (!element) return;
+          
+          const alertClass = type === 'success' ? 'alert-success' :
+                           type === 'danger' ? 'alert-danger' :
+                           type === 'warning' ? 'alert-warning' : 'alert-info';
+          
+          element.innerHTML = `
+            <div class="alert ${alertClass} alert-dismissible fade show">
+              ${text}
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+          `;
+          
+          setTimeout(() => {
+            const alert = element.querySelector('.alert');
+            if (alert) alert.remove();
+          }, 5000);
+        }
+        
+        function showLoginError(message) {
+          const loginError = document.getElementById('login-error');
+          if (loginError) {
+            loginError.textContent = message;
+            loginError.classList.remove('d-none');
+          }
+        }
+        
+        function getLoginErrorMessage(errorCode) {
+          switch(errorCode) {
+            case 'auth/invalid-email':
+              return 'Invalid email address.';
+            case 'auth/user-disabled':
+              return 'This account has been disabled.';
+            case 'auth/user-not-found':
+              return 'No account found with this email.';
+            case 'auth/wrong-password':
+              return 'Incorrect password.';
+            case 'auth/too-many-requests':
+              return 'Too many attempts. Please try again later.';
+            default:
+              return 'Login failed. Please check your credentials.';
+          }
+        }
+        
+        function showError(message) {
+          const container = document.querySelector('.container');
+          if (container) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-danger alert-dismissible fade show mt-3';
+            alertDiv.innerHTML = `
+              ${message}
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            container.insertBefore(alertDiv, container.firstChild);
+          }
+        }
+        
+        console.log('🚀 Admin Panel Initialized');
+      });
+    </script>
   </body>
 </html>
